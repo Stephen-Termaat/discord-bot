@@ -4,6 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 import asyncio
+from datetime import datetime
 
 # ==============================
 # CONFIG
@@ -13,11 +14,14 @@ STRIKE_ROLE_1 = 1458973175814557800
 STRIKE_ROLE_2 = 1458973176573857982
 TERMINATED_ROLE = 1467017398736654521
 
-# Staff Roles Allowed To Use Commands
 AUTHORIZED_ROLES = [
     1458973048001532136,
     1458973055924834305
 ]
+
+INFRACTION_CHANNEL_ID = 1454919487903109161
+PROMOTION_CHANNEL_ID = 1297339994842595398
+STAFF_LOG_CHANNEL_ID = 1478873218688487485
 
 STRIKE_FILE = "strike_data.json"
 
@@ -59,166 +63,147 @@ statuses = [
 async def rotate_status():
     for activity_type, text in statuses:
         if activity_type == "watching":
-            activity = discord.Activity(
-                type=discord.ActivityType.watching,
-                name=text
-            )
+            activity = discord.Activity(type=discord.ActivityType.watching, name=text)
         else:
             activity = discord.Game(text)
 
-        await bot.change_presence(
-            status=discord.Status.online,
-            activity=activity
-        )
-
+        await bot.change_presence(status=discord.Status.online, activity=activity)
         await asyncio.sleep(10)
 
 # ==============================
-# READY EVENT
+# READY
 # ==============================
 
 @bot.event
 async def on_ready():
     if not rotate_status.is_running():
         rotate_status.start()
-
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s)")
-    except Exception as e:
-        print(e)
-
+    await bot.tree.sync()
     print(f"Logged in as {bot.user}")
 
 # ==============================
-# PROMOTION COMMAND
+# PROMOTION
 # ==============================
 
 @bot.tree.command(name="promotiondps", description="Promote a member (DPS System)")
-@app_commands.describe(member="Member being promoted", role="New role being given")
-async def promotiondps(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
+@app_commands.describe(member="Member being promoted", role="New role", reason="Reason")
+async def promotiondps(interaction: discord.Interaction, member: discord.Member, role: discord.Role, reason: str):
 
     await interaction.response.defer(ephemeral=True)
 
-    # 🔐 Permission Check
-    if not any(role.id in AUTHORIZED_ROLES for role in interaction.user.roles):
-        await interaction.followup.send(
-            "❌ You do not have permission to use this command.",
-            ephemeral=True
-        )
+    if not any(r.id in AUTHORIZED_ROLES for r in interaction.user.roles):
+        await interaction.followup.send("❌ No permission.", ephemeral=True)
         return
 
-    if member.top_role >= interaction.guild.me.top_role:
-        await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
-        return
+    await member.add_roles(role)
 
+    # Public Embed
+    embed = discord.Embed(
+        title="**AZDPS Promotion**",
+        description=(
+            f"User: {member.mention}\n"
+            f"New Rank: {role.mention}\n"
+            f"Reason: {reason}"
+        ),
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="AZDPS High Command")
+
+    promotion_channel = bot.get_channel(PROMOTION_CHANNEL_ID)
+    await promotion_channel.send(content=member.mention, embed=embed)
+
+    # DM User
     try:
-        await member.add_roles(role)
+        await member.send(embed=embed)
+    except:
+        pass
 
-        embed = discord.Embed(
-            title="**<:AZDPS:1312784566725120030> | AZDPS Promotion**",
-            description=(
-                f"High Command has deemed you fit for a promotion.\n"
-                f"{member.mention} ----------> {role.mention}\n"
-                f"Please review your new roles, and duties. Congratulations!"
-            )
-        )
-        embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478563632970207323/Copy_of_Copy_of_Balkwy_Creations.png")
-        embed.set_footer(text="Signed,\nAZDPS High Command Team")
+    # Staff Log (Automated Format)
+    log_embed = discord.Embed(
+        title="SYSTEM LOG • PROMOTION",
+        color=discord.Color.blue(),
+        timestamp=datetime.utcnow()
+    )
+    log_embed.add_field(name="Member", value=f"{member} ({member.id})", inline=False)
+    log_embed.add_field(name="Promoted By", value=f"{interaction.user} ({interaction.user.id})", inline=False)
+    log_embed.add_field(name="New Role", value=role.name, inline=False)
+    log_embed.add_field(name="Reason", value=reason, inline=False)
 
-        await interaction.channel.send(content=member.mention, embed=embed)
-
-    except discord.Forbidden:
-        await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
+    staff_channel = bot.get_channel(STAFF_LOG_CHANNEL_ID)
+    await staff_channel.send(embed=log_embed)
 
 # ==============================
-# INFRACTION COMMAND
+# INFRACTION
 # ==============================
 
-@bot.tree.command(name="infractiondps", description="Issue an infraction (DPS System)")
-@app_commands.describe(member="Member receiving infraction", action="Type", reason="Reason")
+@bot.tree.command(name="infractiondps", description="Issue an infraction")
+@app_commands.describe(member="Member", action="Infraction Type", reason="Reason")
 @app_commands.choices(action=[
     app_commands.Choice(name="Strike", value="Strike"),
     app_commands.Choice(name="Terminate", value="Terminate"),
     app_commands.Choice(name="Suspend", value="Suspend"),
     app_commands.Choice(name="Warning", value="Warning"),
 ])
-async def infractiondps(interaction: discord.Interaction, member: discord.Member, action: app_commands.Choice[str], reason: str = "No reason provided."):
+async def infractiondps(interaction: discord.Interaction, member: discord.Member, action: app_commands.Choice[str], reason: str):
 
     await interaction.response.defer(ephemeral=True)
 
-    # 🔐 Permission Check
-    if not any(role.id in AUTHORIZED_ROLES for role in interaction.user.roles):
-        await interaction.followup.send(
-            "❌ You do not have permission to use this command.",
-            ephemeral=True
-        )
+    if not any(r.id in AUTHORIZED_ROLES for r in interaction.user.roles):
+        await interaction.followup.send("❌ No permission.", ephemeral=True)
         return
 
-    if member.top_role >= interaction.guild.me.top_role:
-        await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
-        return
+    user_id = str(member.id)
+    strike_counts[user_id] = strike_counts.get(user_id, 0)
 
-    try:
-        user_id = str(member.id)
-        strike_counts[user_id] = strike_counts.get(user_id, 0)
-
-        role1 = interaction.guild.get_role(STRIKE_ROLE_1)
-        role2 = interaction.guild.get_role(STRIKE_ROLE_2)
-        terminated_role = interaction.guild.get_role(TERMINATED_ROLE)
-
-        if action.value == "Strike":
-            strike_counts[user_id] += 1
-            if strike_counts[user_id] > 3:
-                strike_counts[user_id] = 3
-            save_strikes(strike_counts)
-
-            if strike_counts[user_id] == 1 and role1:
-                await member.add_roles(role1)
-
-            elif strike_counts[user_id] == 2:
-                if role1: await member.add_roles(role1)
-                if role2: await member.add_roles(role2)
-
-            elif strike_counts[user_id] == 3:
-                if role1 and role1 in member.roles:
-                    await member.remove_roles(role1)
-                if role2 and role2 in member.roles:
-                    await member.remove_roles(role2)
-                if terminated_role:
-                    await member.add_roles(terminated_role)
-
-        elif action.value == "Terminate":
+    if action.value == "Strike":
+        strike_counts[user_id] += 1
+        if strike_counts[user_id] > 3:
             strike_counts[user_id] = 3
-            save_strikes(strike_counts)
+        save_strikes(strike_counts)
 
-            if role1 and role1 in member.roles:
-                await member.remove_roles(role1)
-            if role2 and role2 in member.roles:
-                await member.remove_roles(role2)
-            if terminated_role:
-                await member.add_roles(terminated_role)
+    if action.value == "Terminate":
+        strike_counts[user_id] = 3
+        save_strikes(strike_counts)
 
-        embed = discord.Embed(
-            title="**<:AZDPS:1312784566725120030> | AZDPS Infraction**",
-            description=(
-                f"Unfortunately, High Command has decided to infract you.\n\n"
-                f"User: {member.mention}\n"
-                f"Infraction Type: {action.value}\n"
-                f"Current Infractions: {strike_counts[user_id]} / 3\n"
-                f"Reason: {reason}"
-            )
-        )
-        embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478849460795740413/Copy_of_Copy_of_Balkwy_Creations.png")
-        embed.set_footer(text="Signed,\nAZDPS High Command Team")
+    # Public Embed
+    embed = discord.Embed(
+        title="**AZDPS Infraction**",
+        description=(
+            f"User: {member.mention}\n"
+            f"Type: {action.value}\n"
+            f"Current Infractions: {strike_counts[user_id]} / 3\n"
+            f"Reason: {reason}"
+        ),
+        color=discord.Color.red()
+    )
+    embed.set_footer(text="AZDPS High Command")
 
-        await interaction.channel.send(content=member.mention, embed=embed)
+    infraction_channel = bot.get_channel(INFRACTION_CHANNEL_ID)
+    await infraction_channel.send(content=member.mention, embed=embed)
 
-    except discord.Forbidden:
-        await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
+    # DM User
+    try:
+        await member.send(embed=embed)
+    except:
+        pass
+
+    # Staff Log (Automated Format)
+    log_embed = discord.Embed(
+        title="SYSTEM LOG • INFRACTION",
+        color=discord.Color.dark_red(),
+        timestamp=datetime.utcnow()
+    )
+    log_embed.add_field(name="Member", value=f"{member} ({member.id})", inline=False)
+    log_embed.add_field(name="Action", value=action.value, inline=False)
+    log_embed.add_field(name="Issued By", value=f"{interaction.user} ({interaction.user.id})", inline=False)
+    log_embed.add_field(name="Strike Count", value=f"{strike_counts[user_id]} / 3", inline=False)
+    log_embed.add_field(name="Reason", value=reason, inline=False)
+
+    staff_channel = bot.get_channel(STAFF_LOG_CHANNEL_ID)
+    await staff_channel.send(embed=log_embed)
 
 # ==============================
-# RUN BOT
+# RUN
 # ==============================
 
 TOKEN = os.getenv("DISCORD_TOKEN")
