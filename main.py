@@ -291,5 +291,38 @@ async def unmute(interaction: discord.Interaction, member: discord.Member):
     await interaction.followup.send("User unmuted.", ephemeral=True)
 
 # ==========================================================
+# ===================== FETCH USER FROM ID =========================
+# ==========================================================
 
+@bot.tree.command(name="fetchuserfromid", description="Convert a Discord ID to a username")
+@app_commands.describe(user_id="The Discord user ID")
+async def fetchuserfromid(interaction: discord.Interaction, user_id: str):
+
+    await interaction.response.defer(ephemeral=True)
+
+    if not has_permission(interaction.user):
+        return await interaction.followup.send("No permission.", ephemeral=True)
+
+    if not user_id.isdigit():
+        return await interaction.followup.send("Invalid ID format.", ephemeral=True)
+
+    try:
+        user = await bot.fetch_user(int(user_id))
+
+        embed = discord.Embed(
+            title="ID Lookup Result",
+            color=discord.Color.blue(),
+            timestamp=datetime.utcnow()
+        )
+
+        embed.add_field(name="Username", value=user.name, inline=False)
+        embed.add_field(name="User ID", value=user.id, inline=False)
+        embed.add_field(name="Account Created", value=user.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"), inline=False)
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    except:
+        await interaction.followup.send("User not found.", ephemeral=True)
+
+# ==========================================================
 bot.run(TOKEN)
