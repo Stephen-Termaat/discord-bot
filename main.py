@@ -1,3 +1,4 @@
+print("BOT STARTING...")
 import os
 import discord
 from discord import app_commands
