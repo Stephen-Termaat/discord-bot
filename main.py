@@ -112,7 +112,8 @@ async def promotiondps(interaction: discord.Interaction, member: discord.Member,
         embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478563632970207323/Copy_of_Copy_of_Balkwy_Creations.png")
         embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        await interaction.followup.send(embed=embed)
+        # 👇 USER PING ABOVE EMBED
+        await interaction.followup.send(content=member.mention, embed=embed)
 
     except discord.Forbidden:
         await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
@@ -190,7 +191,8 @@ async def infractiondps(interaction: discord.Interaction, member: discord.Member
         embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478849460795740413/Copy_of_Copy_of_Balkwy_Creations.png")
         embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        await interaction.followup.send(embed=embed)
+        # 👇 USER PING ABOVE EMBED
+        await interaction.followup.send(content=member.mention, embed=embed)
 
     except discord.Forbidden:
         await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
