@@ -323,6 +323,93 @@ async def fetchuserfromid(interaction: discord.Interaction, user_id: str):
 
     except:
         await interaction.followup.send("User not found.", ephemeral=True)
+        
+# ==========================================================
+# ===================== CHAIN OF COMMAND (PUBLIC) =========================
+# ==========================================================
 
+@bot.tree.command(name="chainofcommand", description="View the AZDPS chain of command")
+async def chainofcommand(interaction: discord.Interaction):
+
+    await interaction.response.defer(ephemeral=True)
+
+    high_command = (
+        "**Commissioner**\n"
+        "**Acting Commissioner**\n"
+        "**Deputy Commissioner**\n"
+        "**Assistant Commissioner**\n"
+        "**Superintendent**\n"
+        "**Colonel**"
+    )
+
+    supervisors = (
+        "**Lieutenant Colonel**\n"
+        "**Major**\n"
+        "**Captain**\n"
+        "**Lieutenant**\n"
+        "**Sergeant First Class**\n"
+        "**Staff Sergeant**\n"
+        "**Sergeant**\n"
+        "**Trial Sergeant**"
+    )
+
+    field_supervisors = (
+        "**Corporal**\n"
+        "**Lance Corporal**"
+    )
+
+    field_patrol = (
+        "**Master Trooper**\n"
+        "**Senior Trooper**\n"
+        "**Trooper 1st Class**\n"
+        "**Trooper 2nd Class**\n"
+        "**Trooper 3rd Class**\n"
+        "**Probationary Trooper**"
+    )
+
+    embed = discord.Embed(
+        title="Arizona Department of Public Safety",
+        description="Official Chain of Command",
+        color=discord.Color.red()
+    )
+
+    embed.add_field(
+        name="🔴 High Command",
+        value=high_command,
+        inline=False
+    )
+
+    embed.add_field(
+        name="🟡 Supervisors",
+        value=supervisors,
+        inline=False
+    )
+
+    embed.add_field(
+        name="🟢 Field Supervisors",
+        value=field_supervisors,
+        inline=False
+    )
+
+    embed.add_field(
+        name="🔵 Field Patrol",
+        value=field_patrol,
+        inline=False
+    )
+
+    embed.add_field(
+        name="Permission Scales",
+        value=(
+            "High Command Team\n"
+            "Supervisor Team\n"
+            "Field Supervisor Team\n"
+            "Field Patrol Team"
+        ),
+        inline=False
+    )
+
+    embed.set_footer(text="AZDPS Official Structure")
+
+    await interaction.followup.send(embed=embed, ephemeral=True)
 # ==========================================================
 bot.run(TOKEN)
