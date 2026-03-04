@@ -436,5 +436,59 @@ async def update(interaction: discord.Interaction, number: str, update: str):
         f"Department Update #{number} successfully posted.",
         ephemeral=True
     )
+    # =================================================================
+# ============================ SAY ================================
+# =================================================================
+
+@bot.tree.command(name="say", description="Make the bot say something")
+@app_commands.describe(
+    message="The message you want the bot to send",
+    channel="Optional: Select a channel to send the message to",
+    type="Optional: Send as normal message or embed"
+)
+@app_commands.choices(type=[
+    app_commands.Choice(name="Message", value="message"),
+    app_commands.Choice(name="Embed", value="embed")
+])
+async def say(
+    interaction: discord.Interaction,
+    message: str,
+    channel: discord.TextChannel | None = None,
+    type: app_commands.Choice[str] | None = None
+):
+
+    allowed_roles = [1458973048001532136, 1458973055924834305]
+
+    if not any(role.id in allowed_roles for role in interaction.user.roles):
+        await interaction.response.send_message(
+            "You do not have permission to use this command.",
+            ephemeral=True
+        )
+        return
+
+    target_channel = channel if channel else interaction.channel
+    message_type = type.value if type else "message"
+
+    try:
+        if message_type == "embed":
+            embed = discord.Embed(
+                description=message,
+                color=discord.Color.blue()
+            )
+            await target_channel.send(embed=embed)
+        else:
+            await target_channel.send(message)
+
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "I do not have permission to send messages in that channel.",
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.send_message(
+        f"Message sent in {target_channel.mention} as {message_type}.",
+        ephemeral=True
+    )
 # ==========================================================
 bot.run(TOKEN)
