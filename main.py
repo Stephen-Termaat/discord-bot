@@ -327,12 +327,12 @@ async def fetchuserfromid(interaction: discord.Interaction, user_id: str):
 # ==========================================================
 # ===================== CHAIN OF COMMAND (PUBLIC) =========================
 # ==========================================================
-
 @bot.tree.command(name="chainofcommand", description="View the AZDPS chain of command")
 async def chainofcommand(interaction: discord.Interaction):
 
     await interaction.response.defer(ephemeral=True)
 
+    # 🔴 High Command
     high_command = (
         "**Commissioner**\n"
         "**Acting Commissioner**\n"
@@ -342,28 +342,35 @@ async def chainofcommand(interaction: discord.Interaction):
         "**Colonel**"
     )
 
+    # 🟡 Supervisors
     supervisors = (
         "**Lieutenant Colonel**\n"
         "**Major**\n"
         "**Captain**\n"
-        "**Lieutenant**\n"
+        "**Lieutenant**"
+    )
+
+    # 🟢 Field Supervisors
+    field_supervisors = (
         "**Sergeant First Class**\n"
         "**Staff Sergeant**\n"
         "**Sergeant**\n"
         "**Trial Sergeant**"
     )
 
-    field_supervisors = (
-        "**Corporal**\n"
-        "**Lance Corporal**"
-    )
-
+    # 🔵 Field Patrol
     field_patrol = (
         "**Master Trooper**\n"
         "**Senior Trooper**\n"
+        "**Corporal**\n"
+        "**Lance Corporal**\n"
         "**Trooper 1st Class**\n"
         "**Trooper 2nd Class**\n"
-        "**Trooper 3rd Class**\n"
+        "**Trooper 3rd Class**"
+    )
+
+    # 🟣 FTO Program
+    fto_program = (
         "**Probationary Trooper**"
     )
 
@@ -373,40 +380,11 @@ async def chainofcommand(interaction: discord.Interaction):
         color=discord.Color.red()
     )
 
-    embed.add_field(
-        name="🔴 High Command",
-        value=high_command,
-        inline=False
-    )
-
-    embed.add_field(
-        name="🟡 Supervisors",
-        value=supervisors,
-        inline=False
-    )
-
-    embed.add_field(
-        name="🟢 Field Supervisors",
-        value=field_supervisors,
-        inline=False
-    )
-
-    embed.add_field(
-        name="🔵 Field Patrol",
-        value=field_patrol,
-        inline=False
-    )
-
-    embed.add_field(
-        name="Permission Scales",
-        value=(
-            "High Command Team\n"
-            "Supervisor Team\n"
-            "Field Supervisor Team\n"
-            "Field Patrol Team"
-        ),
-        inline=False
-    )
+    embed.add_field(name="🔴 High Command", value=high_command, inline=False)
+    embed.add_field(name="🟡 Supervisors", value=supervisors, inline=False)
+    embed.add_field(name="🟢 Field Supervisors", value=field_supervisors, inline=False)
+    embed.add_field(name="🔵 Field Patrol", value=field_patrol, inline=False)
+    embed.add_field(name="🟣 FTO Program", value=fto_program, inline=False)
 
     embed.set_footer(text="AZDPS Official Structure")
 
