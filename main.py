@@ -2,7 +2,8 @@ import os
 import json
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
+import asyncio
 
 # ==============================
 # CONFIG
@@ -39,11 +40,42 @@ def save_strikes(data):
 strike_counts = load_strikes()
 
 # ==============================
+# ROTATING STATUS
+# ==============================
+
+statuses = [
+    ("watching", "over AZDPS"),
+    ("playing", "Promoting AZDPS"),
+    ("playing", "Keeping Arizona safe"),
+]
+
+@tasks.loop(seconds=10)
+async def rotate_status():
+    for activity_type, text in statuses:
+        if activity_type == "watching":
+            activity = discord.Activity(
+                type=discord.ActivityType.watching,
+                name=text
+            )
+        else:
+            activity = discord.Game(text)
+
+        await bot.change_presence(
+            status=discord.Status.online,
+            activity=activity
+        )
+
+        await asyncio.sleep(10)
+
+# ==============================
 # READY EVENT
 # ==============================
 
 @bot.event
 async def on_ready():
+    if not rotate_status.is_running():
+        rotate_status.start()
+
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
