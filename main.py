@@ -13,6 +13,12 @@ STRIKE_ROLE_1 = 1458973175814557800
 STRIKE_ROLE_2 = 1458973176573857982
 TERMINATED_ROLE = 1467017398736654521
 
+# Staff Roles Allowed To Use Commands
+AUTHORIZED_ROLES = [
+    1458973048001532136,
+    1458973055924834305
+]
+
 STRIKE_FILE = "strike_data.json"
 
 intents = discord.Intents.default()
@@ -94,6 +100,14 @@ async def promotiondps(interaction: discord.Interaction, member: discord.Member,
 
     await interaction.response.defer(ephemeral=True)
 
+    # 🔐 Permission Check
+    if not any(role.id in AUTHORIZED_ROLES for role in interaction.user.roles):
+        await interaction.followup.send(
+            "❌ You do not have permission to use this command.",
+            ephemeral=True
+        )
+        return
+
     if member.top_role >= interaction.guild.me.top_role:
         await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
         return
@@ -112,7 +126,6 @@ async def promotiondps(interaction: discord.Interaction, member: discord.Member,
         embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478563632970207323/Copy_of_Copy_of_Balkwy_Creations.png")
         embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        # NORMAL MESSAGE (not interaction reply)
         await interaction.channel.send(content=member.mention, embed=embed)
 
     except discord.Forbidden:
@@ -133,6 +146,14 @@ async def promotiondps(interaction: discord.Interaction, member: discord.Member,
 async def infractiondps(interaction: discord.Interaction, member: discord.Member, action: app_commands.Choice[str], reason: str = "No reason provided."):
 
     await interaction.response.defer(ephemeral=True)
+
+    # 🔐 Permission Check
+    if not any(role.id in AUTHORIZED_ROLES for role in interaction.user.roles):
+        await interaction.followup.send(
+            "❌ You do not have permission to use this command.",
+            ephemeral=True
+        )
+        return
 
     if member.top_role >= interaction.guild.me.top_role:
         await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
@@ -191,7 +212,6 @@ async def infractiondps(interaction: discord.Interaction, member: discord.Member
         embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478849460795740413/Copy_of_Copy_of_Balkwy_Creations.png")
         embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        # NORMAL MESSAGE (not interaction reply)
         await interaction.channel.send(content=member.mention, embed=embed)
 
     except discord.Forbidden:
