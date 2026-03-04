@@ -1,95 +1,76 @@
-import os
-import json
 import discord
-from discord import app_commands
 from discord.ext import commands, tasks
-import asyncio
+from discord import app_commands
 from datetime import datetime
+import json
+import asyncio
 
-# ==============================
-# CONFIG
-# ==============================
+TOKEN = "YOUR_TOKEN_HERE"
 
-AUTHORIZED_ROLES = [
-    1458973048001532136,
-    1458973055924834305
-]
-
+# ================== IDS ==================
 INFRACTION_CHANNEL_ID = 1454919487903109161
+BLACKLIST_CHANNEL_ID = 1473501284316352593
 PROMOTION_CHANNEL_ID = 1297339994842595398
 STAFF_LOG_CHANNEL_ID = 1478873218688487485
 
-STRIKE_FILE = "strike_data.json"
+ROLE_1 = 1458973048001532136
+ROLE_2 = 1458973055924834305
 
-intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
+APPEAL_LINK = "https://docs.google.com/forms/d/e/1FAIpQLSfSo_KOuQ_QxBKW5-5twHeW2pKoIK2RFGbhgZZD4NE1ATpOnQ/viewform?usp=dialog"
 
+# ================== BOT SETUP ==================
+intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ==============================
-# STRIKE STORAGE
-# ==============================
+strike_file = "strikes.json"
 
 def load_strikes():
-    if not os.path.exists(STRIKE_FILE):
-        with open(STRIKE_FILE, "w") as f:
-            json.dump({}, f)
+    try:
+        with open(strike_file, "r") as f:
+            return json.load(f)
+    except:
         return {}
-    with open(STRIKE_FILE, "r") as f:
-        return json.load(f)
 
 def save_strikes(data):
-    with open(STRIKE_FILE, "w") as f:
+    with open(strike_file, "w") as f:
         json.dump(data, f, indent=4)
 
 strike_counts = load_strikes()
 
-# ==============================
-# ROTATING STATUS
-# ==============================
+def has_permission(member):
+    return any(role.id in [ROLE_1, ROLE_2] for role in member.roles)
 
+# ================== ROTATING STATUS ==================
 statuses = [
-    ("watching", "over AZDPS"),
-    ("playing", "Promoting AZDPS"),
-    ("playing", "Keeping Arizona safe"),
+    "Watching over AZDPS",
+    "Promoting AZDPS",
+    "Keeping Arizona safe"
 ]
 
 @tasks.loop(seconds=10)
-async def rotate_status():
-    for activity_type, text in statuses:
-        if activity_type == "watching":
-            activity = discord.Activity(type=discord.ActivityType.watching, name=text)
-        else:
-            activity = discord.Game(text)
-
-        await bot.change_presence(status=discord.Status.online, activity=activity)
+async def change_status():
+    for status in statuses:
+        await bot.change_presence(activity=discord.Game(name=status))
         await asyncio.sleep(10)
 
 @bot.event
 async def on_ready():
-    if not rotate_status.is_running():
-        rotate_status.start()
+    change_status.start()
     await bot.tree.sync()
     print(f"Logged in as {bot.user}")
 
-# ==============================
-# PERMISSION CHECK
-# ==============================
-
-def has_permission(user):
-    return any(role.id in AUTHORIZED_ROLES for role in user.roles)
-
-# ==============================
-# INFRACTION COMMAND
-# ==============================
+# ==========================================================
+# ===================== INFRACTION =========================
+# ==========================================================
 
 @bot.tree.command(name="infractiondps", description="Issue an infraction")
 @app_commands.describe(
     member="Member",
     action="Infraction Type",
-    appealable="Is this infraction appealable?",
-    reason="Reason"
+    appealable="Appealable?",
+    reason="Reason",
+    duration="Duration (7d / 12h)",
+    proof="Proof attachment (Required for Blacklist)"
 )
 @app_commands.choices(
     action=[
@@ -109,7 +90,9 @@ async def infractiondps(
     member: discord.Member,
     action: app_commands.Choice[str],
     appealable: app_commands.Choice[str],
-    reason: str
+    reason: str,
+    duration: str,
+    proof: discord.Attachment = None
 ):
 
     await interaction.response.defer(ephemeral=True)
@@ -118,98 +101,112 @@ async def infractiondps(
         await interaction.followup.send("❌ No permission.", ephemeral=True)
         return
 
+    moderator = interaction.user
+    user_id = str(member.id)
+
     # ================= BLACKLIST =================
     if action.value == "Blacklist":
-        await interaction.guild.ban(member, reason=reason)
+
+        if not (duration.endswith("d") or duration.endswith("h")):
+            await interaction.followup.send("❌ Duration must end in d or h.", ephemeral=True)
+            return
+
+        if not proof:
+            await interaction.followup.send("❌ Proof attachment required.", ephemeral=True)
+            return
 
         embed = discord.Embed(
-            title="AZDPS Blacklist",
-            description=f"{member.mention} has been permanently blacklisted.\nReason: {reason}",
-            color=discord.Color.dark_red()
+            title="AZDPS Permanent Blacklist",
+            color=discord.Color.dark_red(),
+            timestamp=datetime.utcnow()
         )
+        embed.add_field(name="Name:", value=member.mention, inline=False)
+        embed.add_field(name="Reason:", value=reason, inline=False)
+        embed.add_field(name="Duration:", value=duration, inline=False)
+        embed.add_field(name="Proof:", value=f"[Click to View]({proof.url})", inline=False)
+        embed.add_field(name="Approved by:", value="Must be a COL+", inline=False)
+        embed.add_field(name="Appeal:", value=appealable.value, inline=False)
 
-        channel = bot.get_channel(INFRACTION_CHANNEL_ID)
-        await channel.send(embed=embed)
+        await bot.get_channel(BLACKLIST_CHANNEL_ID).send(embed=embed)
 
-        staff_channel = bot.get_channel(STAFF_LOG_CHANNEL_ID)
-        await staff_channel.send(
-            embed=discord.Embed(
-                title="SYSTEM LOG • BLACKLIST",
-                description=f"User: {member} ({member.id})\nBy: {interaction.user}\nReason: {reason}",
-                timestamp=datetime.utcnow(),
-                color=discord.Color.dark_red()
-            )
+        # DM
+        dm = discord.Embed(
+            title="AZDPS Blacklist Notice",
+            description="You have been permanently blacklisted.",
+            color=discord.Color.dark_red(),
+            timestamp=datetime.utcnow()
         )
+        dm.add_field(name="Reason", value=reason, inline=False)
+        dm.add_field(name="Duration", value=duration, inline=False)
+        dm.add_field(name="Moderator", value=moderator.mention, inline=False)
+
+        if appealable.value == "Yes":
+            dm.add_field(name="Appeal", value=f"[Submit Appeal]({APPEAL_LINK})", inline=False)
+
+        try:
+            await member.send(embed=dm)
+        except:
+            pass
+
+        await interaction.guild.ban(member, reason=f"BLACKLIST: {reason}")
+
+        await interaction.followup.send("✅ User blacklisted.", ephemeral=True)
         return
 
     # ================= NORMAL INFRACTIONS =================
 
-    user_id = str(member.id)
     strike_counts[user_id] = strike_counts.get(user_id, 0)
 
     if action.value == "Strike":
         strike_counts[user_id] += 1
-        if strike_counts[user_id] > 3:
-            strike_counts[user_id] = 3
         save_strikes(strike_counts)
+
+    current_strikes = strike_counts.get(user_id, 0)
 
     embed = discord.Embed(
         title="AZDPS Infraction",
-        description=(
-            f"User: {member.mention}\n"
-            f"Type: {action.value}\n"
-            f"Reason: {reason}\n"
-            f"Appealable: {appealable.value}"
-        ),
-        color=discord.Color.red()
+        color=discord.Color.red(),
+        timestamp=datetime.utcnow()
     )
+    embed.add_field(name="User", value=member.mention, inline=False)
+    embed.add_field(name="Action", value=action.value, inline=False)
+    embed.add_field(name="Reason", value=reason, inline=False)
+    embed.add_field(name="Duration", value=duration, inline=False)
+    embed.add_field(name="Current Strikes", value=str(current_strikes), inline=False)
+    embed.add_field(name="Appealable", value=appealable.value, inline=False)
+    embed.add_field(name="Moderator", value=moderator.mention, inline=False)
 
-    channel = bot.get_channel(INFRACTION_CHANNEL_ID)
-    message = await channel.send(content=member.mention, embed=embed)
+    message = await bot.get_channel(INFRACTION_CHANNEL_ID).send(content=member.mention, embed=embed)
 
-    # ================= APPEAL THREAD =================
+    # DM
+    dm = discord.Embed(
+        title="AZDPS Infraction Notice",
+        color=discord.Color.red(),
+        timestamp=datetime.utcnow()
+    )
+    dm.add_field(name="Action", value=action.value, inline=False)
+    dm.add_field(name="Reason", value=reason, inline=False)
+    dm.add_field(name="Duration", value=duration, inline=False)
+    dm.add_field(name="Current Strikes", value=str(current_strikes), inline=False)
+    dm.add_field(name="Moderator", value=moderator.mention, inline=False)
 
-    if (
-        action.value in ["Strike", "Suspend", "Terminate"]
-        and appealable.value == "Yes"
-    ):
-        thread = await message.create_thread(
-            name="Appeal",
-            auto_archive_duration=1440
-        )
-        await thread.send(
-            "Appeal your infraction here.\nProvide evidence and reasoning."
-        )
-
-    # ================= DM USER =================
     try:
-        await member.send(embed=embed)
+        await member.send(embed=dm)
     except:
         pass
 
-    # ================= STAFF LOG =================
+    if action.value in ["Strike", "Suspend", "Terminate"] and appealable.value == "Yes":
+        thread = await message.create_thread(name="Appeal", auto_archive_duration=10080)
+        await thread.send("Appeal your infraction here.")
 
-    log_embed = discord.Embed(
-        title="SYSTEM LOG • INFRACTION",
-        color=discord.Color.dark_red(),
-        timestamp=datetime.utcnow()
-    )
-    log_embed.add_field(name="Member", value=f"{member} ({member.id})", inline=False)
-    log_embed.add_field(name="Action", value=action.value, inline=False)
-    log_embed.add_field(name="Appealable", value=appealable.value, inline=False)
-    log_embed.add_field(name="Issued By", value=f"{interaction.user}", inline=False)
-    log_embed.add_field(name="Reason", value=reason, inline=False)
+    await interaction.followup.send("✅ Infraction issued.", ephemeral=True)
 
-    staff_channel = bot.get_channel(STAFF_LOG_CHANNEL_ID)
-    await staff_channel.send(embed=log_embed)
+# ==========================================================
+# ======================== BAN =============================
+# ==========================================================
 
-# ==============================
-# PROMOTION COMMAND (unchanged logic)
-# ==============================
-
-@bot.tree.command(name="promotiondps", description="Promote a member")
-@app_commands.describe(member="Member", role="New Role", reason="Reason")
-async def promotiondps(interaction: discord.Interaction, member: discord.Member, role: discord.Role, reason: str):
+@bot.tree.command(name="ban", description="Ban a user")
+async def ban(interaction: discord.Interaction, member: discord.Member, reason: str):
 
     await interaction.response.defer(ephemeral=True)
 
@@ -217,39 +214,71 @@ async def promotiondps(interaction: discord.Interaction, member: discord.Member,
         await interaction.followup.send("❌ No permission.", ephemeral=True)
         return
 
-    await member.add_roles(role)
+    moderator = interaction.user
 
-    embed = discord.Embed(
-        title="AZDPS Promotion",
-        description=(
-            f"User: {member.mention}\n"
-            f"New Rank: {role.mention}\n"
-            f"Reason: {reason}"
-        ),
-        color=discord.Color.green()
+    dm = discord.Embed(
+        title="AZDPS Ban Notice",
+        color=discord.Color.dark_red(),
+        timestamp=datetime.utcnow()
     )
-
-    channel = bot.get_channel(PROMOTION_CHANNEL_ID)
-    await channel.send(content=member.mention, embed=embed)
+    dm.add_field(name="Reason", value=reason, inline=False)
+    dm.add_field(name="Moderator", value=moderator.mention, inline=False)
+    dm.add_field(name="Appeal", value=f"[Submit Appeal]({APPEAL_LINK})", inline=False)
 
     try:
-        await member.send(embed=embed)
+        await member.send(embed=dm)
     except:
         pass
 
-    staff_channel = bot.get_channel(STAFF_LOG_CHANNEL_ID)
-    await staff_channel.send(
-        embed=discord.Embed(
-            title="SYSTEM LOG • PROMOTION",
-            description=f"User: {member} ({member.id})\nBy: {interaction.user}\nRole: {role.name}\nReason: {reason}",
-            timestamp=datetime.utcnow(),
-            color=discord.Color.blue()
-        )
-    )
+    await interaction.guild.ban(member, reason=reason)
 
-# ==============================
-# RUN
-# ==============================
+    await interaction.followup.send("✅ User banned.", ephemeral=True)
 
-TOKEN = os.getenv("DISCORD_TOKEN")
+# ==========================================================
+# ======================== KICK ============================
+# ==========================================================
+
+@bot.tree.command(name="kick", description="Kick a user")
+async def kick(interaction: discord.Interaction, member: discord.Member, reason: str):
+
+    await interaction.response.defer(ephemeral=True)
+
+    if not has_permission(interaction.user):
+        await interaction.followup.send("❌ No permission.", ephemeral=True)
+        return
+
+    await interaction.guild.kick(member, reason=reason)
+    await interaction.followup.send("✅ User kicked.", ephemeral=True)
+
+# ==========================================================
+# ======================== MUTE ============================
+# ==========================================================
+
+@bot.tree.command(name="mute", description="Mute a user")
+async def mute(interaction: discord.Interaction, member: discord.Member, duration: str, reason: str):
+
+    await interaction.response.defer(ephemeral=True)
+
+    if not has_permission(interaction.user):
+        await interaction.followup.send("❌ No permission.", ephemeral=True)
+        return
+
+    if not (duration.endswith("d") or duration.endswith("h")):
+        await interaction.followup.send("❌ Duration must end in d or h.", ephemeral=True)
+        return
+
+    hours = 0
+    if duration.endswith("h"):
+        hours = int(duration[:-1])
+    if duration.endswith("d"):
+        hours = int(duration[:-1]) * 24
+
+    until = datetime.utcnow() + discord.utils.timedelta(hours=hours)
+
+    await member.timeout(until, reason=reason)
+
+    await interaction.followup.send("✅ User muted.", ephemeral=True)
+
+# ==========================================================
+
 bot.run(TOKEN)
