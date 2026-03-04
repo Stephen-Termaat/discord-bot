@@ -10,7 +10,7 @@ ALLOWED_ROLE_IDS = [
     1458973048001532136
 ]
 
-# 🔥 YOUR CHANNEL ID (ADDED)
+# 🔥 PROMOTION LOG CHANNEL
 PROMOTION_LOG_CHANNEL_ID = 1297339994842595398
 
 intents = discord.Intents.default()
@@ -35,42 +35,46 @@ async def on_ready():
 )
 async def promotion_issue(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
 
+    # ✅ FIX: Defer interaction to avoid timeout
+    await interaction.response.defer()
+
     if not any(r.id in ALLOWED_ROLE_IDS for r in interaction.user.roles):
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "❌ You do not have permission to use this command.",
             ephemeral=True
         )
         return
 
     if role >= interaction.guild.me.top_role:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "❌ That role is higher than my highest role.",
             ephemeral=True
         )
         return
 
     if member.top_role >= interaction.guild.me.top_role:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "❌ I cannot modify that member due to role hierarchy.",
             ephemeral=True
         )
         return
 
     try:
+        # ✅ Add role
         await member.add_roles(role)
 
-        # ✅ Reply in command channel
-        await interaction.response.send_message(
+        # ✅ Command response
+        await interaction.followup.send(
             f"✅ {member.mention} has been promoted to {role.mention}."
         )
 
-        # 🔥 EMBED 1 (IMAGE)
+        # 🔥 EMBED 1 — IMAGE
         embed_image = discord.Embed()
         embed_image.set_image(
             url="https://cdn.discordapp.com/attachments/1463985139431379078/1478563632970207323/Copy_of_Copy_of_Balkwy_Creations.png"
         )
 
-        # 🔥 EMBED 2 (MAIN PROMOTION)
+        # 🔥 EMBED 2 — PROMOTION
         embed_main = discord.Embed(
             title="**<:AZDPS:1312784566725120030> | AZDPS Promotion**",
             description=(
@@ -85,10 +89,12 @@ async def promotion_issue(interaction: discord.Interaction, member: discord.Memb
             text="Signed,\nAZDPS High Command Team"
         )
 
-        # 🔥 Send to Log Channel
-        log_channel = bot.get_channel(PROMOTION_LOG_CHANNEL_ID)
-        if log_channel:
-            await log_channel.send(embeds=[embed_image, embed_main])
+        # 🔥 SAFE CHANNEL FETCH
+        log_channel = interaction.guild.get_channel(PROMOTION_LOG_CHANNEL_ID)
+        if log_channel is None:
+            log_channel = await bot.fetch_channel(PROMOTION_LOG_CHANNEL_ID)
+
+        await log_channel.send(embeds=[embed_image, embed_main])
 
     except discord.Forbidden:
         await interaction.followup.send(
