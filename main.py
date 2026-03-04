@@ -18,4 +18,4 @@ async def test(interaction: discord.Interaction):
     await interaction.response.send_message("Bot is working.")
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-bot.run(TOKEN)bot.run(TOKEN)
+bot.run(TOKEN)
