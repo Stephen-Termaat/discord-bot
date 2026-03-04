@@ -389,5 +389,52 @@ async def chainofcommand(interaction: discord.Interaction):
     embed.set_footer(text="AZDPS Official Structure")
 
     await interaction.followup.send(embed=embed, ephemeral=True)
+# =================================================================
+# ====================== DEPARTMENT UPDATE ========================
+# =================================================================
+
+UPDATE_CHANNEL_ID = 1474211686947885187
+
+@bot.tree.command(name="update", description="Post a formatted department update")
+@app_commands.describe(
+    number="Update number (example: 011)",
+    update="Type out the department update"
+)
+async def update(interaction: discord.Interaction, number: str, update: str):
+
+    allowed_roles = [1458973048001532136, 1458973055924834305]
+
+    if not any(role.id in allowed_roles for role in interaction.user.roles):
+        await interaction.response.send_message(
+            "You do not have permission to use this command.",
+            ephemeral=True
+        )
+        return
+
+    channel = bot.get_channel(UPDATE_CHANNEL_ID)
+
+    if not channel:
+        await interaction.response.send_message(
+            "Update channel not found.",
+            ephemeral=True
+        )
+        return
+
+    try:
+        number = f"{int(number):03}"
+    except ValueError:
+        pass
+
+    formatted_message = (
+        f"<:AZDPS:1312784566725120030> Department Update #{number} <:AZDPS:1312784566725120030>\n\n"
+        f"> {update}"
+    )
+
+    await channel.send(formatted_message)
+
+    await interaction.response.send_message(
+        f"Department Update #{number} successfully posted.",
+        ephemeral=True
+    )
 # ==========================================================
 bot.run(TOKEN)
