@@ -92,7 +92,7 @@ async def on_ready():
 @app_commands.describe(member="Member being promoted", role="New role being given")
 async def promotiondps(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
 
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
 
     if member.top_role >= interaction.guild.me.top_role:
         await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
@@ -112,8 +112,8 @@ async def promotiondps(interaction: discord.Interaction, member: discord.Member,
         embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478563632970207323/Copy_of_Copy_of_Balkwy_Creations.png")
         embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        # 👇 USER PING ABOVE EMBED
-        await interaction.followup.send(content=member.mention, embed=embed)
+        # NORMAL MESSAGE (not interaction reply)
+        await interaction.channel.send(content=member.mention, embed=embed)
 
     except discord.Forbidden:
         await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
@@ -132,7 +132,7 @@ async def promotiondps(interaction: discord.Interaction, member: discord.Member,
 ])
 async def infractiondps(interaction: discord.Interaction, member: discord.Member, action: app_commands.Choice[str], reason: str = "No reason provided."):
 
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
 
     if member.top_role >= interaction.guild.me.top_role:
         await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
@@ -191,8 +191,8 @@ async def infractiondps(interaction: discord.Interaction, member: discord.Member
         embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478849460795740413/Copy_of_Copy_of_Balkwy_Creations.png")
         embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        # 👇 USER PING ABOVE EMBED
-        await interaction.followup.send(content=member.mention, embed=embed)
+        # NORMAL MESSAGE (not interaction reply)
+        await interaction.channel.send(content=member.mention, embed=embed)
 
     except discord.Forbidden:
         await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
