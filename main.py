@@ -20,7 +20,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ==============================
-# STRIKE STORAGE (PERMANENT)
+# STRIKE STORAGE
 # ==============================
 
 def load_strikes():
@@ -32,11 +32,9 @@ def load_strikes():
     with open(STRIKE_FILE, "r") as f:
         return json.load(f)
 
-
 def save_strikes(data):
     with open(STRIKE_FILE, "w") as f:
         json.dump(data, f, indent=4)
-
 
 strike_counts = load_strikes()
 
@@ -58,31 +56,20 @@ async def on_ready():
 # PROMOTION COMMAND
 # ==============================
 
-@bot.tree.command(name="promotion", description="Promote a member")
-@app_commands.describe(
-    member="Member being promoted",
-    role="New role being given"
-)
-async def promotion(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
+@bot.tree.command(name="promotiondps", description="Promote a member (DPS System)")
+@app_commands.describe(member="Member being promoted", role="New role being given")
+async def promotiondps(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
 
     await interaction.response.defer()
 
-    try:
-        if member.top_role >= interaction.guild.me.top_role:
-            await interaction.followup.send(
-                "❌ My role must be above this user's top role to promote them.",
-                ephemeral=True
-            )
-            return
+    if member.top_role >= interaction.guild.me.top_role:
+        await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
+        return
 
+    try:
         await member.add_roles(role)
 
-        embed1 = discord.Embed()
-        embed1.set_image(
-            url="https://cdn.discordapp.com/attachments/1463985139431379078/1478563632970207323/Copy_of_Copy_of_Balkwy_Creations.png"
-        )
-
-        embed2 = discord.Embed(
+        embed = discord.Embed(
             title="**<:AZDPS:1312784566725120030> | AZDPS Promotion**",
             description=(
                 f"High Command has deemed you fit for a promotion.\n"
@@ -90,53 +77,32 @@ async def promotion(interaction: discord.Interaction, member: discord.Member, ro
                 f"Please review your new roles, and duties. Congratulations!"
             )
         )
-        embed2.set_footer(text="Signed,\nAZDPS High Command Team")
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478563632970207323/Copy_of_Copy_of_Balkwy_Creations.png")
+        embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        await interaction.followup.send(embeds=[embed1, embed2])
+        await interaction.followup.send(embed=embed)
 
     except discord.Forbidden:
-        await interaction.followup.send(
-            "❌ I do not have permission to modify this user's roles.",
-            ephemeral=True
-        )
-
-    except Exception as e:
-        await interaction.followup.send(
-            f"⚠️ Unexpected error: {str(e)}",
-            ephemeral=True
-        )
+        await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
 
 # ==============================
 # INFRACTION COMMAND
 # ==============================
 
-@bot.tree.command(name="infraction", description="Issue an infraction to a member")
-@app_commands.describe(
-    member="The member receiving the infraction",
-    action="Type of infraction",
-    reason="Reason for the infraction"
-)
+@bot.tree.command(name="infractiondps", description="Issue an infraction (DPS System)")
+@app_commands.describe(member="Member receiving infraction", action="Type", reason="Reason")
 @app_commands.choices(action=[
     app_commands.Choice(name="Strike", value="Strike"),
     app_commands.Choice(name="Terminate", value="Terminate"),
     app_commands.Choice(name="Suspend", value="Suspend"),
     app_commands.Choice(name="Warning", value="Warning"),
 ])
-async def infraction(
-    interaction: discord.Interaction,
-    member: discord.Member,
-    action: app_commands.Choice[str],
-    reason: str = "No reason provided."
-):
+async def infractiondps(interaction: discord.Interaction, member: discord.Member, action: app_commands.Choice[str], reason: str = "No reason provided."):
 
     await interaction.response.defer()
 
-    # Role hierarchy protection
     if member.top_role >= interaction.guild.me.top_role:
-        await interaction.followup.send(
-            "❌ My role must be above this user's top role to infract them.",
-            ephemeral=True
-        )
+        await interaction.followup.send("❌ My role must be above this user's top role.", ephemeral=True)
         return
 
     try:
@@ -147,94 +113,55 @@ async def infraction(
         role2 = interaction.guild.get_role(STRIKE_ROLE_2)
         terminated_role = interaction.guild.get_role(TERMINATED_ROLE)
 
-        # ==========================
-        # STRIKE LOGIC
-        # ==========================
-
         if action.value == "Strike":
-
             strike_counts[user_id] += 1
-            strike_number = strike_counts[user_id]
-
-            # Cap at 3
-            if strike_number > 3:
+            if strike_counts[user_id] > 3:
                 strike_counts[user_id] = 3
-
             save_strikes(strike_counts)
 
-            if strike_counts[user_id] == 1:
-                if role1 and role1 not in member.roles:
-                    await member.add_roles(role1)
+            if strike_counts[user_id] == 1 and role1:
+                await member.add_roles(role1)
 
             elif strike_counts[user_id] == 2:
-                if role1 and role1 not in member.roles:
-                    await member.add_roles(role1)
-
-                if role2 and role2 not in member.roles:
-                    await member.add_roles(role2)
+                if role1: await member.add_roles(role1)
+                if role2: await member.add_roles(role2)
 
             elif strike_counts[user_id] == 3:
                 if role1 and role1 in member.roles:
                     await member.remove_roles(role1)
-
                 if role2 and role2 in member.roles:
                     await member.remove_roles(role2)
-
-                if terminated_role and terminated_role not in member.roles:
+                if terminated_role:
                     await member.add_roles(terminated_role)
 
         elif action.value == "Terminate":
-
             strike_counts[user_id] = 3
             save_strikes(strike_counts)
 
             if role1 and role1 in member.roles:
                 await member.remove_roles(role1)
-
             if role2 and role2 in member.roles:
                 await member.remove_roles(role2)
-
-            if terminated_role and terminated_role not in member.roles:
+            if terminated_role:
                 await member.add_roles(terminated_role)
 
-        # Warning and Suspend do not change strikes
-        current_infraction_display = f"{strike_counts[user_id]} / 3"
-
-        # ==========================
-        # EMBEDS
-        # ==========================
-
-        embed1 = discord.Embed()
-        embed1.set_image(
-            url="https://cdn.discordapp.com/attachments/1463985139431379078/1478849460795740413/Copy_of_Copy_of_Balkwy_Creations.png"
-        )
-
-        embed2 = discord.Embed(
+        embed = discord.Embed(
             title="**<:AZDPS:1312784566725120030> | AZDPS Infraction**",
             description=(
-                f"Unfortunately, High Command has decided to infract you.\n"
-                f"Please review the rules to avoid being infracted again.\n\n"
+                f"Unfortunately, High Command has decided to infract you.\n\n"
                 f"User: {member.mention}\n"
                 f"Infraction Type: {action.value}\n"
-                f"Current Infractions: {current_infraction_display}\n"
+                f"Current Infractions: {strike_counts[user_id]} / 3\n"
                 f"Reason: {reason}"
             )
         )
-        embed2.set_footer(text="Signed,\nAZDPS High Command Team")
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1463985139431379078/1478849460795740413/Copy_of_Copy_of_Balkwy_Creations.png")
+        embed.set_footer(text="Signed,\nAZDPS High Command Team")
 
-        await interaction.followup.send(embeds=[embed1, embed2])
+        await interaction.followup.send(embed=embed)
 
     except discord.Forbidden:
-        await interaction.followup.send(
-            "❌ I do not have permission to modify this user's roles.",
-            ephemeral=True
-        )
-
-    except Exception as e:
-        await interaction.followup.send(
-            f"⚠️ Unexpected error: {str(e)}",
-            ephemeral=True
-        )
+        await interaction.followup.send("❌ I lack permissions.", ephemeral=True)
 
 # ==============================
 # RUN BOT
