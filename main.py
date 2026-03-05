@@ -490,5 +490,66 @@ async def say(
         f"Message sent in {target_channel.mention} as {message_type}.",
         ephemeral=True
     )
+    # =================================================================
+# ========================== SERVER INFO ==========================
+# =================================================================
+
+@bot.tree.command(name="serverinfo", description="View information about this server")
+async def serverinfo(interaction: discord.Interaction):
+
+    guild = interaction.guild
+
+    embed = discord.Embed(
+        title=guild.name,
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(name="Server ID", value=guild.id, inline=False)
+    embed.add_field(name="Owner", value=guild.owner.mention if guild.owner else "Unknown", inline=False)
+    embed.add_field(name="Created On", value=guild.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"), inline=False)
+    embed.add_field(name="Member Count", value=guild.member_count, inline=False)
+    embed.add_field(name="Boost Level", value=guild.premium_tier, inline=False)
+    embed.add_field(name="Boosts", value=guild.premium_subscription_count, inline=False)
+
+    if guild.icon:
+        embed.set_thumbnail(url=guild.icon.url)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# =================================================================
+# =========================== ACCOUNT ==============================
+# =================================================================
+
+@bot.tree.command(name="account", description="View information about a user account")
+@app_commands.describe(member="Optional: Select a member")
+async def account(interaction: discord.Interaction, member: discord.Member | None = None):
+
+    member = member or interaction.user
+
+    embed = discord.Embed(
+        title=f"{member.name}",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(name="Username", value=member.name, inline=False)
+    embed.add_field(name="User ID", value=member.id, inline=False)
+    embed.add_field(name="Account Created", value=member.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"), inline=False)
+    embed.add_field(
+        name="Joined Server",
+        value=member.joined_at.strftime("%Y-%m-%d %H:%M:%S UTC") if member.joined_at else "Unknown",
+        inline=False
+    )
+
+    roles = [role.mention for role in member.roles if role.name != "@everyone"]
+    embed.add_field(
+        name="Roles",
+        value=", ".join(roles) if roles else "None",
+        inline=False
+    )
+
+    embed.set_thumbnail(url=member.display_avatar.url)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 # ==========================================================
 bot.run(TOKEN)
