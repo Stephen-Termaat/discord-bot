@@ -551,5 +551,145 @@ async def account(interaction: discord.Interaction, member: discord.Member | Non
     embed.set_thumbnail(url=member.display_avatar.url)
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+# =================================================================
+# ======================== SUGGESTION SYSTEM ======================
+# =================================================================
+
+SUGGESTION_FORUM_ID = 1475601720242475124
+
+APPROVED_ROLE = 1475602324230770901
+PENDING_ROLE = 1475602330148802842
+DENIED_ROLE = 1475602332829089842
+
+SUGGESTION_STAFF_ROLES = [1458973048001532136, 1458973055924834305]
+
+
+def is_suggestion_staff(user):
+    return any(role.id in SUGGESTION_STAFF_ROLES for role in user.roles)
+
+
+# ======================== /suggest ========================
+
+@bot.tree.command(name="suggest", description="Submit a suggestion")
+@app_commands.describe(
+    title="Title of your suggestion",
+    suggestion="Detailed description of your suggestion"
+)
+async def suggest(interaction: discord.Interaction, title: str, suggestion: str):
+
+    await interaction.response.defer(ephemeral=True)
+
+    forum_channel = interaction.client.get_channel(SUGGESTION_FORUM_ID)
+
+    if not forum_channel or not isinstance(forum_channel, discord.ForumChannel):
+        return await interaction.followup.send(
+            "Suggestion forum channel not configured properly.",
+            ephemeral=True
+        )
+
+    embed = discord.Embed(
+        title=title,
+        description=suggestion,
+        color=discord.Color.blue(),
+        timestamp=datetime.utcnow()
+    )
+
+    embed.add_field(
+        name="Suggested By",
+        value=interaction.user.mention,
+        inline=False
+    )
+
+    embed.set_footer(text=f"User ID: {interaction.user.id}")
+
+    thread = await forum_channel.create_thread(
+        name=title,
+        embed=embed
+    )
+
+    await thread.send("Vote below:")
+    await thread.send("👍 | 👎")
+
+    await interaction.followup.send(
+        "Suggestion submitted successfully.",
+        ephemeral=True
+    )
+
+
+# ======================== /suggestapprove ========================
+
+@bot.tree.command(name="suggestapprove", description="Approve a suggestion")
+async def suggestapprove(interaction: discord.Interaction):
+
+    if not is_suggestion_staff(interaction.user):
+        return await interaction.response.send_message(
+            "You do not have permission.",
+            ephemeral=True
+        )
+
+    if not isinstance(interaction.channel, discord.Thread):
+        return await interaction.response.send_message(
+            "Use this command inside a suggestion thread.",
+            ephemeral=True
+        )
+
+    await interaction.channel.send(f"<@&{APPROVED_ROLE}>")
+    await interaction.channel.edit(locked=True, archived=True)
+
+    await interaction.response.send_message(
+        "Suggestion approved and locked.",
+        ephemeral=True
+    )
+
+
+# ======================== /suggestpending ========================
+
+@bot.tree.command(name="suggestpending", description="Mark a suggestion as pending")
+async def suggestpending(interaction: discord.Interaction):
+
+    if not is_suggestion_staff(interaction.user):
+        return await interaction.response.send_message(
+            "You do not have permission.",
+            ephemeral=True
+        )
+
+    if not isinstance(interaction.channel, discord.Thread):
+        return await interaction.response.send_message(
+            "Use this command inside a suggestion thread.",
+            ephemeral=True
+        )
+
+    await interaction.channel.send(f"<@&{PENDING_ROLE}>")
+
+    await interaction.response.send_message(
+        "Suggestion marked as pending.",
+        ephemeral=True
+    )
+
+
+# ======================== /suggestdeny ========================
+
+@bot.tree.command(name="suggestdeny", description="Deny a suggestion")
+async def suggestdeny(interaction: discord.Interaction):
+
+    if not is_suggestion_staff(interaction.user):
+        return await interaction.response.send_message(
+            "You do not have permission.",
+            ephemeral=True
+        )
+
+    if not isinstance(interaction.channel, discord.Thread):
+        return await interaction.response.send_message(
+            "Use this command inside a suggestion thread.",
+            ephemeral=True
+        )
+
+    await interaction.channel.send(f"<@&{DENIED_ROLE}>")
+    await interaction.channel.edit(locked=True, archived=True)
+
+    await interaction.response.send_message(
+        "Suggestion denied and locked.",
+        ephemeral=True
+    )
 # ==========================================================
 bot.run(TOKEN)
