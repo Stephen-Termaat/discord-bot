@@ -1425,6 +1425,44 @@ async def miranda(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ==========================================================
+# ==================== TIMESTAMP GENERATOR =================
+# ==========================================================
+
+from datetime import datetime, timezone
+
+@bot.tree.command(name="timestamp", description="Generate a formatted Discord timestamp.")
+@app_commands.describe(
+    date="Date in format YYYY-MM-DD",
+    time="Time in format HH:MM (24h)"
+)
+async def timestamp(interaction: discord.Interaction, date: str, time: str):
+
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        dt = dt.replace(tzinfo=timezone.utc)
+
+        unix = int(dt.timestamp())
+        formatted = f"<t:{unix}:f>"
+
+        embed = discord.Embed(
+            title="Timestamp Generator",
+            description=f"**Copy the timestamp below:**\n```{formatted}```",
+            color=discord.Color.blue()
+        )
+
+        embed.add_field(name="Preview", value=formatted, inline=False)
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    except ValueError:
+        await interaction.followup.send(
+            "Invalid format. Use **YYYY-MM-DD** for date and **HH:MM** (24h) for time.",
+            ephemeral=True
+        )
+
+# ==========================================================
 # ========================== RUN BOT =======================
 # ==========================================================
 
