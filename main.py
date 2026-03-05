@@ -1425,53 +1425,75 @@ async def miranda(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ==========================================================
-# ==================== TIMESTAMP GENERATOR =================
+# ===================== TIMESTAMP GENERATOR =================
 # ==========================================================
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
-@bot.tree.command(name="timestamp", description="Generate a formatted Discord timestamp.")
+@bot.tree.command(name="timestamp", description="Generate a Discord timestamp")
 @app_commands.describe(
-    date="Date in format YYYY-MM-DD",
-    time="Time in format HH:MM (24h)",
-    timezone="Your timezone (Example: America/New_York)",
-    type="Optional timestamp display type"
+    date="Date (YYYY-MM-DD)",
+    time="Time (HH:MM)",
+    ampm="AM or PM",
+    timezone="Your timezone",
+    style="Optional timestamp style"
 )
-@app_commands.choices(type=[
-    app_commands.Choice(name="Short Time", value="t"),
-    app_commands.Choice(name="Long Time", value="T"),
-    app_commands.Choice(name="Short Date", value="d"),
-    app_commands.Choice(name="Long Date", value="D"),
-    app_commands.Choice(name="Long Date With Short Time (Default)", value="f"),
-    app_commands.Choice(name="Full Date With Day", value="F"),
-    app_commands.Choice(name="Relative", value="R")
-])
+@app_commands.choices(
+    ampm=[
+        app_commands.Choice(name="AM", value="AM"),
+        app_commands.Choice(name="PM", value="PM")
+    ],
+    timezone=[
+        app_commands.Choice(name="Eastern Standard Time (EST)", value="US/Eastern"),
+        app_commands.Choice(name="Central Standard Time (CST)", value="US/Central"),
+        app_commands.Choice(name="Mountain Standard Time (MST)", value="US/Mountain"),
+        app_commands.Choice(name="Pacific Standard Time (PST)", value="US/Pacific"),
+        app_commands.Choice(name="Greenwich Mean Time (GMT)", value="GMT"),
+        app_commands.Choice(name="Coordinated Universal Time (UTC)", value="UTC")
+    ],
+    style=[
+        app_commands.Choice(name="Short Time", value="t"),
+        app_commands.Choice(name="Long Time", value="T"),
+        app_commands.Choice(name="Short Date", value="d"),
+        app_commands.Choice(name="Long Date", value="D"),
+        app_commands.Choice(name="Long Date + Short Time", value="f"),
+        app_commands.Choice(name="Full Date + Time", value="F"),
+        app_commands.Choice(name="Relative", value="R")
+    ]
+)
 async def timestamp(
     interaction: discord.Interaction,
     date: str,
     time: str,
-    timezone: str,
-    type: app_commands.Choice[str] = None
+    ampm: app_commands.Choice[str],
+    timezone: app_commands.Choice[str],
+    style: app_commands.Choice[str] = None
 ):
 
-    await interaction.response.defer(ephemeral=True)
+    import pytz
+    from datetime import datetime
 
     try:
-        user_tz = ZoneInfo(timezone)
+        hour, minute = map(int, time.split(":"))
 
-        dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-        dt = dt.replace(tzinfo=user_tz)
+        # convert 12hr → 24hr
+        if ampm.value == "PM" and hour != 12:
+            hour += 12
+        if ampm.value == "AM" and hour == 12:
+            hour = 0
+
+        dt = datetime.strptime(date, "%Y-%m-%d")
+        dt = dt.replace(hour=hour, minute=minute)
+
+        tz = pytz.timezone(timezone.value)
+        dt = tz.localize(dt)
 
         unix = int(dt.timestamp())
 
-        # Default format
-        timestamp_type = type.value if type else "f"
+        timestamp_type = style.value if style else "f"
 
         formatted = f"<t:{unix}:{timestamp_type}>"
 
         embed = discord.Embed(
-            title="Timestamp Generator",
+            title="Timestamp Generated",
             color=discord.Color.blue()
         )
 
@@ -1487,11 +1509,11 @@ async def timestamp(
             inline=False
         )
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     except Exception:
-        await interaction.followup.send(
-            "Invalid input.\nUse **YYYY-MM-DD**, **HH:MM**, and a valid timezone like `America/New_York`.",
+        await interaction.response.send_message(
+            "Invalid format. Use YYYY-MM-DD for date and HH:MM for time.",
             ephemeral=True
         )
 
