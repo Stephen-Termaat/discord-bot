@@ -1011,7 +1011,8 @@ async def casecount(interaction: discord.Interaction):
     )
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
-    # ==========================================================
+    
+# ==========================================================
 # ======================= CHAIN OF COMMAND =======================
 # ==========================================================
     @bot.tree.command(name="chainofcommand", description="View the Arizona Department of Public Safety Chain of Command")
