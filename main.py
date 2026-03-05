@@ -3,7 +3,7 @@
 # Developer: Wrd.Jaxk
 # Version: 1.0
 # Lines: 1502
-All Rights Reserved
+# All Rights Reserved
 # ==========================================================
 import os
 import discord
