@@ -166,7 +166,6 @@ async def infractiondps(interaction: discord.Interaction,
                         action: app_commands.Choice[str],
                         appealable: app_commands.Choice[str],
                         reason: str,
-                        duration: str):
 
     await interaction.response.defer(ephemeral=True)
 
