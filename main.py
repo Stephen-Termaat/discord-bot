@@ -1009,6 +1009,78 @@ async def casecount(interaction: discord.Interaction):
     )
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+    # ==========================================================
+# ======================= CHAIN OF COMMAND =======================
+# ==========================================================
+    @bot.tree.command(name="chainofcommand", description="View the Arizona Department of Public Safety Chain of Command")
+async def chainofcommand(interaction: discord.Interaction):
+
+    embed = discord.Embed(
+        title="Arizona Department of Public Safety - Chain of Command",
+        color=discord.Color.red()
+    )
+
+    # High Command
+    embed.add_field(
+        name="High Command",
+        value=(
+            "Commissioner\n"
+            "Acting Commissioner (If Applicable)\n"
+            "Deputy Commissioner\n"
+            "Assistant Commissioner\n"
+            "Superintendent\n"
+            "Colonel"
+        ),
+        inline=False
+    )
+
+    # Supervisors
+    embed.add_field(
+        name="Supervisors",
+        value=(
+            "Lieutenant Colonel\n"
+            "Major\n"
+            "Captain\n"
+            "Lieutenant"
+        ),
+        inline=False
+    )
+
+    # Field Supervisors
+    embed.add_field(
+        name="Field Supervisors",
+        value=(
+            "Sergeant First Class\n"
+            "Staff Sergeant\n"
+            "Sergeant\n"
+            "Trial Sergeant"
+        ),
+        inline=False
+    )
+
+    # Field Patrol
+    embed.add_field(
+        name="Field Patrol",
+        value=(
+            "Corporal\n"
+            "Lance Corporal\n"
+            "Master Trooper\n"
+            "Senior Trooper\n"
+            "Trooper First Class\n"
+            "Trooper Second Class\n"
+            "Trooper Third Class"
+        ),
+        inline=False
+    )
+
+    # FTO Program
+    embed.add_field(
+        name="Field Training Officer Program",
+        value="Probationary Trooper",
+        inline=False
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 # ==========================================================
 # ========================== RUN BOT =======================
 # ==========================================================
