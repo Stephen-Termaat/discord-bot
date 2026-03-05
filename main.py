@@ -13,6 +13,9 @@ from datetime import datetime, timedelta
 import asyncio
 import json
 import re
+import random
+from datetime import time
+import pytz
 
 # ==========================================================
 # ========================== TOKEN ==========================
@@ -33,6 +36,7 @@ BLACKLIST_CHANNEL_ID = 1473501284316352593
 STAFF_LOG_CHANNEL_ID = 1478873218688487485
 UPDATE_CHANNEL_ID = 1474211686947885187
 SUGGESTION_FORUM_ID = 1475601720242475124
+QUOTE_CHANNEL_ID = 1478137798065258496
 
 # ==========================================================
 # ======================== ROLE IDS ========================
