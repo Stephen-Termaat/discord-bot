@@ -161,11 +161,13 @@ def extract_invite_code(invite: str):
         app_commands.Choice(name="No", value="No"),
     ]
 )
-async def infractiondps(interaction: discord.Interaction,
-                        member: discord.Member,
-                        action: app_commands.Choice[str],
-                        appealable: app_commands.Choice[str],
-                        reason: str,
+async def infractiondps(
+    interaction: discord.Interaction,
+    member: discord.Member,
+    action: app_commands.Choice[str],
+    appealable: app_commands.Choice[str],
+    reason: str
+):
 
     await interaction.response.defer(ephemeral=True)
 
