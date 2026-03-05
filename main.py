@@ -16,6 +16,7 @@ import re
 import random
 from datetime import time
 import pytz
+with open("quotes.json", "r", encoding="utf-8") as f:
 
 # ==========================================================
 # ========================== TOKEN ==========================
@@ -1133,6 +1134,42 @@ async def ping(interaction: discord.Interaction):
     embed.set_footer(text="Wrd.Jaxk")
 
     await interaction.followup.send(embed=embed, ephemeral=True)
+import discord
+import json
+import random
+from discord.ext import tasks
+from datetime import time
+import pytz
+
+# ==========================================================
+# ===================== QUOTE OF THE DAY ===================
+# ==========================================================
+
+QUOTE_CHANNEL_ID = 1478137798065258496
+
+# Load quotes from JSON file
+with open("quotes.json", "r", encoding="utf-8") as f:
+    quotes = json.load(f)
+
+# Set timezone
+est = pytz.timezone("US/Eastern")
+
+@tasks.loop(time=time(hour=5, minute=0, tzinfo=est))
+async def quote_of_the_day():
+    channel = bot.get_channel(QUOTE_CHANNEL_ID)
+
+    if channel is None:
+        return
+
+    quote = random.choice(quotes)
+
+    await channel.send(quote)
+
+
+@bot.event
+async def on_ready():
+    if not quote_of_the_day.is_running():
+        quote_of_the_day.start()
     
 # ==========================================================
 # ========================== RUN BOT =======================
