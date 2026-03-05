@@ -1428,37 +1428,70 @@ async def miranda(interaction: discord.Interaction):
 # ==================== TIMESTAMP GENERATOR =================
 # ==========================================================
 
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 @bot.tree.command(name="timestamp", description="Generate a formatted Discord timestamp.")
 @app_commands.describe(
     date="Date in format YYYY-MM-DD",
-    time="Time in format HH:MM (24h)"
+    time="Time in format HH:MM (24h)",
+    timezone="Your timezone (Example: America/New_York)",
+    type="Optional timestamp display type"
 )
-async def timestamp(interaction: discord.Interaction, date: str, time: str):
+@app_commands.choices(type=[
+    app_commands.Choice(name="Short Time", value="t"),
+    app_commands.Choice(name="Long Time", value="T"),
+    app_commands.Choice(name="Short Date", value="d"),
+    app_commands.Choice(name="Long Date", value="D"),
+    app_commands.Choice(name="Long Date With Short Time (Default)", value="f"),
+    app_commands.Choice(name="Full Date With Day", value="F"),
+    app_commands.Choice(name="Relative", value="R")
+])
+async def timestamp(
+    interaction: discord.Interaction,
+    date: str,
+    time: str,
+    timezone: str,
+    type: app_commands.Choice[str] = None
+):
 
     await interaction.response.defer(ephemeral=True)
 
     try:
+        user_tz = ZoneInfo(timezone)
+
         dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=user_tz)
 
         unix = int(dt.timestamp())
-        formatted = f"<t:{unix}:f>"
+
+        # Default format
+        timestamp_type = type.value if type else "f"
+
+        formatted = f"<t:{unix}:{timestamp_type}>"
 
         embed = discord.Embed(
             title="Timestamp Generator",
-            description=f"**Copy the timestamp below:**\n```{formatted}```",
             color=discord.Color.blue()
         )
 
-        embed.add_field(name="Preview", value=formatted, inline=False)
+        embed.add_field(
+            name="Copy Timestamp",
+            value=f"```{formatted}```",
+            inline=False
+        )
+
+        embed.add_field(
+            name="Preview",
+            value=formatted,
+            inline=False
+        )
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-    except ValueError:
+    except Exception:
         await interaction.followup.send(
-            "Invalid format. Use **YYYY-MM-DD** for date and **HH:MM** (24h) for time.",
+            "Invalid input.\nUse **YYYY-MM-DD**, **HH:MM**, and a valid timezone like `America/New_York`.",
             ephemeral=True
         )
 
