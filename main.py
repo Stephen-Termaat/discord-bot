@@ -17,7 +17,7 @@ import random
 from datetime import time
 import pytz
 with open("quotes.json", "r", encoding="utf-8") as f:
-
+    quotes = json.load(f)
 # ==========================================================
 # ========================== TOKEN ==========================
 # ==========================================================
