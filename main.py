@@ -16,8 +16,13 @@ import re
 import random
 from datetime import time
 import pytz
-with open("quotes.json", "r", encoding="utf-8") as f:
-    quotes = json.load(f)
+import json
+
+try:
+    with open("quotes.json", "r", encoding="utf-8") as f:
+        quotes = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    quotes = ["Stay positive and keep moving forward. - Unknown"]
 # ==========================================================
 # ========================== TOKEN ==========================
 # ==========================================================
