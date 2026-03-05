@@ -1,3 +1,10 @@
+# ==========================================================
+# AZDPS BOT v1.0.0
+# Proprietary System
+# Developed by Wrd.Jaxk
+# All Rights Reserved
+# ==========================================================
+
 import os
 import discord
 from discord.ext import commands, tasks
@@ -935,6 +942,67 @@ async def case_lookup(interaction: discord.Interaction, case_number: int):
     embed.add_field(name="Moderator", value=moderator.mention if moderator else case_data["moderator"], inline=False)
     embed.add_field(name="Reason", value=case_data["reason"], inline=False)
     embed.add_field(name="Date", value=case_data["date"], inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+    # ==========================================================
+# ======================= USER CASES =======================
+# ==========================================================
+
+@bot.tree.command(name="cases", description="View all cases for a member")
+@app_commands.describe(member="Member to lookup")
+async def cases(interaction: discord.Interaction, member: discord.Member):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    user_cases = []
+
+    for case_number, data in case_database.items():
+        if data["member"] == str(member.id):
+            user_cases.append((int(case_number), data))
+
+    if not user_cases:
+        return await interaction.response.send_message(
+            "No cases found for this member.",
+            ephemeral=True
+        )
+
+    user_cases.sort(key=lambda x: x[0])
+
+    description = ""
+    for case_number, data in user_cases:
+        description += (
+            f"Case #{int(case_number):04d} | "
+            f"{data['type']} | "
+            f"{data['date']}\n"
+        )
+
+    embed = discord.Embed(
+        title=f"Cases for {member}",
+        description=description,
+        color=discord.Color.blurple()
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# ==========================================================
+# ======================= CASE COUNT =======================
+# ==========================================================
+
+@bot.tree.command(name="casecount", description="View total case count")
+async def casecount(interaction: discord.Interaction):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    total_cases = len(case_database)
+
+    embed = discord.Embed(
+        title="Total Cases Issued",
+        description=f"{total_cases} total cases in database.",
+        color=discord.Color.green()
+    )
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 # ==========================================================
