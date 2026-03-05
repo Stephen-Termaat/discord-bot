@@ -564,10 +564,14 @@ async def fetchuser(interaction: discord.Interaction, member: discord.Member):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-# ==========================================================
-# ========================= UPDATE =========================
+# # ==========================================================
+# ========================== UPDATE =========================
 # ==========================================================
 
+UPDATE_CHANNEL_ID = 1474211686947885187
+
+
+@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name="update", description="Send a department update")
 @app_commands.describe(
     number="Update number (example: 010)",
@@ -575,10 +579,15 @@ async def fetchuser(interaction: discord.Interaction, member: discord.Member):
 )
 async def update(interaction: discord.Interaction, number: str, update: str):
 
-    await interaction.response.defer()
-
     if not has_permission(interaction.user):
-        return await interaction.followup.send("No permission.", ephemeral=True)
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    await interaction.response.defer(ephemeral=True)
+
+    update_channel = bot.get_channel(UPDATE_CHANNEL_ID)
+
+    if update_channel is None:
+        return await interaction.followup.send("Update channel not found.", ephemeral=True)
 
     formatted_message = (
         f"<:AZDPS:1312784566725120030> "
@@ -587,10 +596,9 @@ async def update(interaction: discord.Interaction, number: str, update: str):
         f"> {update}"
     )
 
-    await interaction.channel.send(formatted_message)
+    await update_channel.send(formatted_message)
 
-    await interaction.followup.send("Department update sent.", ephemeral=True)
-
+    await interaction.followup.send("Department update sent successfully.", ephemeral=True)
 # ==========================================================
 # =========================== SAY ==========================
 # ==========================================================
@@ -1084,6 +1092,44 @@ async def chainofcommand(interaction: discord.Interaction):
     )
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+# ==========================================================
+# =========================== PING ==========================
+# ==========================================================
+
+import time
+
+@bot.tree.command(name="ping", description="View bot latency and response time")
+async def ping(interaction: discord.Interaction):
+
+    start_time = time.perf_counter()
+
+    await interaction.response.defer(ephemeral=True)
+
+    end_time = time.perf_counter()
+    api_latency = round((end_time - start_time) * 1000)
+    websocket_latency = round(bot.latency * 1000)
+
+    embed = discord.Embed(
+        title="Pong!",
+        color=discord.Color.green()
+    )
+
+    embed.add_field(
+        name="WebSocket Latency",
+        value=f"{websocket_latency} ms",
+        inline=False
+    )
+
+    embed.add_field(
+        name="API Response Time",
+        value=f"{api_latency} ms",
+        inline=False
+    )
+
+    embed.set_footer(text="Wrd.Jaxk")
+
+    await interaction.followup.send(embed=embed, ephemeral=True)
+    
 # ==========================================================
 # ========================== RUN BOT =======================
 # ==========================================================
