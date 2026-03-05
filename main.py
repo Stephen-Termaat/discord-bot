@@ -5,28 +5,54 @@ from discord import app_commands
 from datetime import datetime, timedelta
 import asyncio
 import json
+import re
 
-# ================== TOKEN ==================
+# ==========================================================
+# ========================== TOKEN ==========================
+# ==========================================================
+
 TOKEN = os.getenv("TOKEN")
 
 if TOKEN is None:
     raise ValueError("TOKEN environment variable not set.")
 
-# ================== CHANNEL IDS ==================
-INFRACTION_CHANNEL_ID = 1454919487903109161
-BLACKLIST_CHANNEL_ID = 1473501284316352593
+# ==========================================================
+# ======================= CHANNEL IDS ======================
+# ==========================================================
 
-# ================== ROLE PERMISSIONS ==================
+INFRACTION_CHANNEL_ID = 1454919487903109161
+PROMOTION_CHANNEL_ID = 1297339994842595398
+BLACKLIST_CHANNEL_ID = 1473501284316352593
+STAFF_LOG_CHANNEL_ID = 1478873218688487485
+UPDATE_CHANNEL_ID = 1474211686947885187
+SUGGESTION_FORUM_ID = 1475601720242475124
+
+# ==========================================================
+# ======================== ROLE IDS ========================
+# ==========================================================
+
 ROLE_1 = 1458973048001532136
 ROLE_2 = 1458973055924834305
 
+TERMINATED_ROLE_ID = 1467017398736654521
+
+APPROVED_ROLE = 1475602324230770901
+PENDING_ROLE = 1475602330148802842
+DENIED_ROLE = 1475602332829089842
+
 APPEAL_LINK = "https://docs.google.com/forms/d/e/1FAIpQLSfSo_KOuQ_QxBKW5-5twHeW2pKoIK2RFGbhgZZD4NE1ATpOnQ/viewform?usp=dialog"
 
-# ================== BOT SETUP ==================
+# ==========================================================
+# ========================= BOT SETUP ======================
+# ==========================================================
+
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ================== STRIKE STORAGE ==================
+# ==========================================================
+# ====================== STRIKE STORAGE ====================
+# ==========================================================
+
 strike_file = "strikes.json"
 
 def load_strikes():
@@ -42,10 +68,26 @@ def save_strikes(data):
 
 strike_counts = load_strikes()
 
+# ==========================================================
+# ===================== PERMISSION CHECK ===================
+# ==========================================================
+
 def has_permission(member):
     return any(role.id in [ROLE_1, ROLE_2] for role in member.roles)
 
-# ================== ROTATING STATUS ==================
+# ==========================================================
+# ======================== STAFF LOG =======================
+# ==========================================================
+
+async def send_staff_log(embed: discord.Embed):
+    channel = bot.get_channel(STAFF_LOG_CHANNEL_ID)
+    if channel:
+        await channel.send(embed=embed)
+
+# ==========================================================
+# ====================== STATUS ROTATION ===================
+# ==========================================================
+
 statuses = [
     "Watching over AZDPS",
     "Promoting AZDPS",
@@ -66,7 +108,31 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
 
 # ==========================================================
-# ===================== INFRACTION =========================
+# ====================== HELPER METHODS ====================
+# ==========================================================
+
+def parse_duration(duration: str):
+    if not (duration.endswith("d") or duration.endswith("h")):
+        return None
+
+    try:
+        value = int(duration[:-1])
+    except:
+        return None
+
+    if duration.endswith("d"):
+        return timedelta(days=value)
+    else:
+        return timedelta(hours=value)
+
+def is_user_id(value: str):
+    return value.isdigit()
+
+def extract_invite_code(invite: str):
+    match = re.search(r"(?:discord\.gg/|discord\.com/invite/)(\w+)", invite)
+    return match.group(1) if match else None
+    # ==========================================================
+# ===================== INFRACTION SYSTEM ==================
 # ==========================================================
 
 @bot.tree.command(name="infractiondps", description="Issue an infraction")
@@ -101,7 +167,8 @@ async def infractiondps(interaction: discord.Interaction,
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    if not (duration.endswith("d") or duration.endswith("h")):
+    delta = parse_duration(duration)
+    if not delta:
         return await interaction.followup.send("Duration must end in d or h.", ephemeral=True)
 
     user_id = str(member.id)
@@ -111,29 +178,48 @@ async def infractiondps(interaction: discord.Interaction,
         strike_counts[user_id] += 1
         save_strikes(strike_counts)
 
+    if action.value == "Terminate":
+        terminated_role = interaction.guild.get_role(TERMINATED_ROLE_ID)
+        if terminated_role:
+            await member.add_roles(terminated_role)
+
     embed = discord.Embed(
         title="AZDPS Infraction",
         color=discord.Color.red(),
         timestamp=datetime.utcnow()
     )
+
     embed.add_field(name="User", value=member.mention, inline=False)
     embed.add_field(name="Action", value=action.value, inline=False)
     embed.add_field(name="Reason", value=reason, inline=False)
     embed.add_field(name="Duration", value=duration, inline=False)
     embed.add_field(name="Current Strikes", value=str(strike_counts[user_id]), inline=False)
-    embed.add_field(name="Appeal", value=appealable.value, inline=False)
+    embed.add_field(name="Appealable", value=appealable.value, inline=False)
     embed.add_field(name="Moderator", value=interaction.user.mention, inline=False)
 
-    message = await bot.get_channel(INFRACTION_CHANNEL_ID).send(content=member.mention, embed=embed)
+    inf_channel = bot.get_channel(INFRACTION_CHANNEL_ID)
+    msg = await inf_channel.send(content=member.mention, embed=embed)
 
     if appealable.value == "Yes":
-        thread = await message.create_thread(name="Appeal", auto_archive_duration=10080)
-        await thread.send("Appeal your infraction here.")
+        thread = await msg.create_thread(name="Appeal", auto_archive_duration=10080)
+        await thread.send(f"Appeal here. Link: {APPEAL_LINK}")
+
+    # DM USER
+    try:
+        dm_embed = embed.copy()
+        if appealable.value == "Yes":
+            dm_embed.add_field(name="Appeal Link", value=APPEAL_LINK, inline=False)
+        await member.send(embed=dm_embed)
+    except:
+        pass
+
+    await send_staff_log(embed)
 
     await interaction.followup.send("Infraction issued.", ephemeral=True)
 
+
 # ==========================================================
-# ===================== PROMOTION ==========================
+# ===================== PROMOTION SYSTEM ===================
 # ==========================================================
 
 @bot.tree.command(name="promotiondps", description="Issue a promotion")
@@ -157,103 +243,100 @@ async def promotiondps(interaction: discord.Interaction,
         color=discord.Color.green(),
         timestamp=datetime.utcnow()
     )
+
     embed.add_field(name="Member", value=member.mention, inline=False)
     embed.add_field(name="New Rank", value=new_rank, inline=False)
     embed.add_field(name="Reason", value=reason, inline=False)
     embed.add_field(name="Approved By", value=interaction.user.mention, inline=False)
 
-    await bot.get_channel(INFRACTION_CHANNEL_ID).send(content=member.mention, embed=embed)
+    promo_channel = bot.get_channel(PROMOTION_CHANNEL_ID)
+    await promo_channel.send(content=member.mention, embed=embed)
 
     try:
-        await member.send(f"You have been promoted to {new_rank}. Reason: {reason}")
+        await member.send(f"You have been promoted to {new_rank}.\nReason: {reason}")
     except:
         pass
 
+    await send_staff_log(embed)
+
     await interaction.followup.send("Promotion logged.", ephemeral=True)
 
-# ==========================================================
-# ===================== BLACKLIST ==========================
-# ==========================================================
 
-@bot.tree.command(name="blacklist", description="Blacklist a user or server")
-@app_commands.describe(
-    target="User ID, Server ID, Invite, or Name",
-    appealable="Appealable?",
-    reason="Reason",
-    duration="Duration (7d / 12h)",
-    proof="Proof attachment"
-)
-@app_commands.choices(
-    appealable=[
-        app_commands.Choice(name="Yes", value="Yes"),
-        app_commands.Choice(name="No", value="No"),
-    ]
-)
-async def blacklist(interaction: discord.Interaction,
-                    target: str,
-                    appealable: app_commands.Choice[str],
-                    reason: str,
-                    duration: str,
-                    proof: discord.Attachment):
+# @bot.tree.command(name="blacklist", description="Blacklist a user or server")
+async def blacklist(interaction: discord.Interaction, target_id: str, reason: str):
 
     await interaction.response.defer(ephemeral=True)
 
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    if not (duration.endswith("d") or duration.endswith("h")):
-        return await interaction.followup.send("Duration must end in d or h.", ephemeral=True)
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    embed = discord.Embed(
-        title="AZDPS Permanent Blacklist",
-        color=discord.Color.dark_red(),
-        timestamp=datetime.utcnow()
-    )
-    embed.add_field(name="Target", value=target, inline=False)
-    embed.add_field(name="Reason", value=reason, inline=False)
-    embed.add_field(name="Duration", value=duration, inline=False)
-    embed.add_field(name="Proof", value=proof.url, inline=False)
-    embed.add_field(name="Appeal", value=appealable.value, inline=False)
-    embed.add_field(name="Moderator", value=interaction.user.mention, inline=False)
+    # Detect if user exists
+    user = bot.get_user(int(target_id))
+    guild = bot.get_guild(int(target_id))
 
-    await bot.get_channel(BLACKLIST_CHANNEL_ID).send(embed=embed)
+    if user:
+        blacklisted_users[target_id] = {
+            "date": now,
+            "moderator": str(interaction.user.id),
+            "reason": reason
+        }
 
-    if target.isdigit():
         try:
-            user = await bot.fetch_user(int(target))
-            await interaction.guild.ban(user, reason=reason)
-
-            if appealable.value == "Yes":
-                await user.send(f"You have been permanently blacklisted. Reason: {reason}\nAppeal: {APPEAL_LINK}")
-            else:
-                await user.send(f"You have been permanently blacklisted. Reason: {reason}")
-
+            await user.send(f"You have been blacklisted.\nReason: {reason}")
         except:
             pass
 
-    await interaction.followup.send("Blacklist issued.", ephemeral=True)
+    elif guild:
+        blacklisted_servers[target_id] = {
+            "date": now,
+            "moderator": str(interaction.user.id),
+            "reason": reason
+        }
+
+        try:
+            owner = guild.owner
+            await owner.send(f"Your server has been blacklisted.\nReason: {reason}")
+        except:
+            pass
+
+    else:
+        return await interaction.followup.send("Invalid ID.", ephemeral=True)
+
+    with open("blacklist.json", "w") as f:
+        json.dump({
+            "users": blacklisted_users,
+            "servers": blacklisted_servers
+        }, f, indent=4)
+
+    await interaction.followup.send("Blacklisted successfully.", ephemeral=True)
 
 # ==========================================================
-# ===================== BAN / UNBAN ========================
+# ======================== BAN / UNBAN =====================
 # ==========================================================
 
 @bot.tree.command(name="ban", description="Ban a user")
 async def ban(interaction: discord.Interaction, member: discord.Member, reason: str):
+
     await interaction.response.defer(ephemeral=True)
 
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
     try:
-        await member.send(f"You were banned. Reason: {reason}\nAppeal: {APPEAL_LINK}")
+        await member.send(f"You were banned.\nReason: {reason}\nAppeal: {APPEAL_LINK}")
     except:
         pass
 
     await interaction.guild.ban(member, reason=reason)
+
     await interaction.followup.send("User banned.", ephemeral=True)
+
 
 @bot.tree.command(name="unban", description="Unban user by ID")
 async def unban(interaction: discord.Interaction, user_id: str):
+
     await interaction.response.defer(ephemeral=True)
 
     if not has_permission(interaction.user):
@@ -261,435 +344,273 @@ async def unban(interaction: discord.Interaction, user_id: str):
 
     user = await bot.fetch_user(int(user_id))
     await interaction.guild.unban(user)
+
     await interaction.followup.send("User unbanned.", ephemeral=True)
 
-# ==========================================================
-# ===================== MUTE / UNMUTE ======================
-# ==========================================================
 
-@bot.tree.command(name="mute", description="Mute a user")
-async def mute(interaction: discord.Interaction, member: discord.Member, duration: str, reason: str):
+@bot.tree.command(name="kick", description="Kick a user")
+async def kick(interaction: discord.Interaction, member: discord.Member, reason: str):
+
     await interaction.response.defer(ephemeral=True)
 
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    hours = int(duration[:-1]) * (24 if duration.endswith("d") else 1)
-    until = datetime.utcnow() + timedelta(hours=hours)
+    try:
+        await member.send(f"You were kicked.\nReason: {reason}")
+    except:
+        pass
 
+    await interaction.guild.kick(member, reason=reason)
+
+    await interaction.followup.send("User kicked.", ephemeral=True)
+
+
+# ==========================================================
+# ====================== ROLE MANAGEMENT ===================
+# ==========================================================
+
+@bot.tree.command(name="add-role", description="Add a role to a user")
+async def add_role(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
+
+    await interaction.response.defer(ephemeral=True)
+
+    if not has_permission(interaction.user):
+        return await interaction.followup.send("No permission.", ephemeral=True)
+
+    await member.add_roles(role)
+
+    await interaction.followup.send(f"Role {role.name} added to {member.mention}.", ephemeral=True)
+
+
+@bot.tree.command(name="remove-role", description="Remove a role from a user")
+async def remove_role(interaction: discord.Interaction, member: discord.Member, role: discord.Role):
+
+    await interaction.response.defer(ephemeral=True)
+
+    if not has_permission(interaction.user):
+        return await interaction.followup.send("No permission.", ephemeral=True)
+
+    await member.remove_roles(role)
+
+    await interaction.followup.send(f"Role {role.name} removed from {member.mention}.", ephemeral=True)
+    # ==========================================================
+# =========================== MUTE =========================
+# ==========================================================
+
+@bot.tree.command(name="mute", description="Mute a user")
+async def mute(interaction: discord.Interaction, member: discord.Member, duration: str, reason: str):
+
+    await interaction.response.defer(ephemeral=True)
+
+    if not has_permission(interaction.user):
+        return await interaction.followup.send("No permission.", ephemeral=True)
+
+    delta = parse_duration(duration)
+    if not delta:
+        return await interaction.followup.send("Duration must end in d or h.", ephemeral=True)
+
+    until = discord.utils.utcnow() + delta
     await member.timeout(until, reason=reason)
+
+    try:
+        await member.send(f"You have been muted.\nDuration: {duration}\nReason: {reason}")
+    except:
+        pass
+
     await interaction.followup.send("User muted.", ephemeral=True)
+
 
 @bot.tree.command(name="unmute", description="Unmute a user")
 async def unmute(interaction: discord.Interaction, member: discord.Member):
+
     await interaction.response.defer(ephemeral=True)
 
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
     await member.timeout(None)
+
     await interaction.followup.send("User unmuted.", ephemeral=True)
 
+
 # ==========================================================
-# ===================== FETCH USER FROM ID =========================
+# ======================== FETCH USER ======================
 # ==========================================================
 
-@bot.tree.command(name="fetchuserfromid", description="Convert a Discord ID to a username")
-@app_commands.describe(user_id="The Discord user ID")
-async def fetchuserfromid(interaction: discord.Interaction, user_id: str):
+@bot.tree.command(name="fetchuser", description="Fetch info about a user")
+async def fetchuser(interaction: discord.Interaction, member: discord.Member):
+
+    embed = discord.Embed(
+        title="User Info",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(name="Username", value=str(member), inline=False)
+    embed.add_field(name="ID", value=member.id, inline=False)
+    embed.add_field(name="Joined", value=member.joined_at, inline=False)
+    embed.add_field(name="Created", value=member.created_at, inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# ==========================================================
+# ========================= UPDATE =========================
+# ==========================================================
+
+@bot.tree.command(name="update", description="Post an update")
+async def update(interaction: discord.Interaction, message: str):
 
     await interaction.response.defer(ephemeral=True)
 
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    if not user_id.isdigit():
-        return await interaction.followup.send("Invalid ID format.", ephemeral=True)
-
-    try:
-        user = await bot.fetch_user(int(user_id))
-
-        embed = discord.Embed(
-            title="ID Lookup Result",
-            color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
-        )
-
-        embed.add_field(name="Username", value=user.name, inline=False)
-        embed.add_field(name="User ID", value=user.id, inline=False)
-        embed.add_field(name="Account Created", value=user.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"), inline=False)
-
-        await interaction.followup.send(embed=embed, ephemeral=True)
-
-    except:
-        await interaction.followup.send("User not found.", ephemeral=True)
-        
-# ==========================================================
-# ===================== CHAIN OF COMMAND (PUBLIC) =========================
-# ==========================================================
-@bot.tree.command(name="chainofcommand", description="View the AZDPS chain of command")
-async def chainofcommand(interaction: discord.Interaction):
-
-    await interaction.response.defer(ephemeral=True)
-
-    # 🔴 High Command
-    high_command = (
-        "**Commissioner**\n"
-        "**Acting Commissioner**\n"
-        "**Deputy Commissioner**\n"
-        "**Assistant Commissioner**\n"
-        "**Superintendent**\n"
-        "**Colonel**"
-    )
-
-    # 🟡 Supervisors
-    supervisors = (
-        "**Lieutenant Colonel**\n"
-        "**Major**\n"
-        "**Captain**\n"
-        "**Lieutenant**"
-    )
-
-    # 🟢 Field Supervisors
-    field_supervisors = (
-        "**Sergeant First Class**\n"
-        "**Staff Sergeant**\n"
-        "**Sergeant**\n"
-        "**Trial Sergeant**"
-    )
-
-    # 🔵 Field Patrol
-    field_patrol = (
-        "**Master Trooper**\n"
-        "**Senior Trooper**\n"
-        "**Corporal**\n"
-        "**Lance Corporal**\n"
-        "**Trooper 1st Class**\n"
-        "**Trooper 2nd Class**\n"
-        "**Trooper 3rd Class**"
-    )
-
-    # 🟣 FTO Program
-    fto_program = (
-        "**Probationary Trooper**"
-    )
-
-    embed = discord.Embed(
-        title="Arizona Department of Public Safety",
-        description="Official Chain of Command",
-        color=discord.Color.red()
-    )
-
-    embed.add_field(name="🔴 High Command", value=high_command, inline=False)
-    embed.add_field(name="🟡 Supervisors", value=supervisors, inline=False)
-    embed.add_field(name="🟢 Field Supervisors", value=field_supervisors, inline=False)
-    embed.add_field(name="🔵 Field Patrol", value=field_patrol, inline=False)
-    embed.add_field(name="🟣 FTO Program", value=fto_program, inline=False)
-
-    embed.set_footer(text="AZDPS Official Structure")
-
-    await interaction.followup.send(embed=embed, ephemeral=True)
-# =================================================================
-# ====================== DEPARTMENT UPDATE ========================
-# =================================================================
-
-UPDATE_CHANNEL_ID = 1474211686947885187
-
-@bot.tree.command(name="update", description="Post a formatted department update")
-@app_commands.describe(
-    number="Update number (example: 011)",
-    update="Type out the department update"
-)
-async def update(interaction: discord.Interaction, number: str, update: str):
-
-    allowed_roles = [1458973048001532136, 1458973055924834305]
-
-    if not any(role.id in allowed_roles for role in interaction.user.roles):
-        await interaction.response.send_message(
-            "You do not have permission to use this command.",
-            ephemeral=True
-        )
-        return
-
     channel = bot.get_channel(UPDATE_CHANNEL_ID)
 
-    if not channel:
-        await interaction.response.send_message(
-            "Update channel not found.",
-            ephemeral=True
-        )
-        return
+    await channel.send("----------------------------------------")
+    await channel.send(message)
+    await channel.send("----------------------------------------")
 
-    try:
-        number = f"{int(number):03}"
-    except ValueError:
-        pass
+    await interaction.followup.send("Update posted.", ephemeral=True)
 
-    formatted_message = (
-        f"<:AZDPS:1312784566725120030> Department Update #{number} <:AZDPS:1312784566725120030>\n\n"
-        f"> {update}"
-    )
 
-    await channel.send(formatted_message)
-
-    await interaction.response.send_message(
-        f"Department Update #{number} successfully posted.",
-        ephemeral=True
-    )
-    # =================================================================
-# ============================ SAY ================================
-# =================================================================
+# ==========================================================
+# =========================== SAY ==========================
+# ==========================================================
 
 @bot.tree.command(name="say", description="Make the bot say something")
-@app_commands.describe(
-    message="The message you want the bot to send",
-    channel="Optional: Select a channel to send the message to",
-    type="Optional: Send as normal message or embed"
-)
-@app_commands.choices(type=[
-    app_commands.Choice(name="Message", value="message"),
-    app_commands.Choice(name="Embed", value="embed")
-])
-async def say(
-    interaction: discord.Interaction,
-    message: str,
-    channel: discord.TextChannel | None = None,
-    type: app_commands.Choice[str] | None = None
-):
+async def say(interaction: discord.Interaction, message: str):
 
-    allowed_roles = [1458973048001532136, 1458973055924834305]
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
 
-    if not any(role.id in allowed_roles for role in interaction.user.roles):
-        await interaction.response.send_message(
-            "You do not have permission to use this command.",
-            ephemeral=True
-        )
-        return
+    await interaction.channel.send(message)
+    await interaction.response.send_message("Sent.", ephemeral=True)
 
-    target_channel = channel if channel else interaction.channel
-    message_type = type.value if type else "message"
 
-    try:
-        if message_type == "embed":
-            embed = discord.Embed(
-                description=message,
-                color=discord.Color.blue()
-            )
-            await target_channel.send(embed=embed)
-        else:
-            await target_channel.send(message)
+# ==========================================================
+# ======================= SERVER INFO ======================
+# ==========================================================
 
-    except discord.Forbidden:
-        await interaction.response.send_message(
-            "I do not have permission to send messages in that channel.",
-            ephemeral=True
-        )
-        return
-
-    await interaction.response.send_message(
-        f"Message sent in {target_channel.mention} as {message_type}.",
-        ephemeral=True
-    )
-    # =================================================================
-# ========================== SERVER INFO ==========================
-# =================================================================
-
-@bot.tree.command(name="serverinfo", description="View information about this server")
+@bot.tree.command(name="serverinfo", description="Get server info")
 async def serverinfo(interaction: discord.Interaction):
 
     guild = interaction.guild
 
     embed = discord.Embed(
         title=guild.name,
-        color=discord.Color.blue()
+        color=discord.Color.blurple()
     )
 
-    embed.add_field(name="Server ID", value=guild.id, inline=False)
-    embed.add_field(name="Owner", value=guild.owner.mention if guild.owner else "Unknown", inline=False)
-    embed.add_field(name="Created On", value=guild.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"), inline=False)
-    embed.add_field(name="Member Count", value=guild.member_count, inline=False)
-    embed.add_field(name="Boost Level", value=guild.premium_tier, inline=False)
-    embed.add_field(name="Boosts", value=guild.premium_subscription_count, inline=False)
-
-    if guild.icon:
-        embed.set_thumbnail(url=guild.icon.url)
+    embed.add_field(name="Members", value=guild.member_count)
+    embed.add_field(name="Owner", value=guild.owner)
+    embed.add_field(name="Created", value=guild.created_at)
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-# =================================================================
-# =========================== ACCOUNT ==============================
-# =================================================================
+# ==========================================================
+# ========================== ACCOUNT =======================
+# ==========================================================
 
-@bot.tree.command(name="account", description="View information about a user account")
-@app_commands.describe(member="Optional: Select a member")
-async def account(interaction: discord.Interaction, member: discord.Member | None = None):
+@bot.tree.command(name="account", description="Get your account info")
+async def account(interaction: discord.Interaction):
 
-    member = member or interaction.user
+    member = interaction.user
 
     embed = discord.Embed(
-        title=f"{member.name}",
-        color=discord.Color.blue()
+        title="Account Info",
+        color=discord.Color.green()
     )
 
-    embed.add_field(name="Username", value=member.name, inline=False)
-    embed.add_field(name="User ID", value=member.id, inline=False)
-    embed.add_field(name="Account Created", value=member.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"), inline=False)
-    embed.add_field(
-        name="Joined Server",
-        value=member.joined_at.strftime("%Y-%m-%d %H:%M:%S UTC") if member.joined_at else "Unknown",
-        inline=False
-    )
-
-    roles = [role.mention for role in member.roles if role.name != "@everyone"]
-    embed.add_field(
-        name="Roles",
-        value=", ".join(roles) if roles else "None",
-        inline=False
-    )
-
-    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(name="Username", value=str(member))
+    embed.add_field(name="ID", value=member.id)
+    embed.add_field(name="Created", value=member.created_at)
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
-# =================================================================
-# ======================== SUGGESTION SYSTEM ======================
-# =================================================================
-
-SUGGESTION_FORUM_ID = 1475601720242475124
-
-APPROVED_ROLE = 1475602324230770901
-PENDING_ROLE = 1475602330148802842
-DENIED_ROLE = 1475602332829089842
-
-SUGGESTION_STAFF_ROLES = [1458973048001532136, 1458973055924834305]
 
 
-def is_suggestion_staff(user):
-    return any(role.id in SUGGESTION_STAFF_ROLES for role in user.roles)
+# ==========================================================
+# ====================== SUGGESTION SYSTEM =================
+# ==========================================================
 
-
-# ======================== /suggest ========================
-
-@bot.tree.command(name="suggest", description="Submit a suggestion")
-@app_commands.describe(
-    title="Title of your suggestion",
-    suggestion="Detailed description of your suggestion"
-)
+@bot.tree.command(name="suggest", description="Create a suggestion")
 async def suggest(interaction: discord.Interaction, title: str, suggestion: str):
 
     await interaction.response.defer(ephemeral=True)
 
-    forum_channel = interaction.client.get_channel(SUGGESTION_FORUM_ID)
-
-    if not forum_channel or not isinstance(forum_channel, discord.ForumChannel):
-        return await interaction.followup.send(
-            "Suggestion forum channel not configured properly.",
-            ephemeral=True
-        )
+    forum = bot.get_channel(SUGGESTION_FORUM_ID)
 
     embed = discord.Embed(
         title=title,
         description=suggestion,
-        color=discord.Color.blue(),
+        color=discord.Color.orange(),
         timestamp=datetime.utcnow()
     )
 
-    embed.add_field(
-        name="Suggested By",
-        value=interaction.user.mention,
-        inline=False
-    )
+    embed.add_field(name="Status", value="<@&1475602330148802842>", inline=False)
+    embed.set_footer(text=f"Suggested by {interaction.user}")
 
-    embed.set_footer(text=f"User ID: {interaction.user.id}")
-
-    thread = await forum_channel.create_thread(
+    thread = await forum.create_thread(
         name=title,
+        content="<@&1475602330148802842>",
         embed=embed
     )
 
-    await thread.send("Vote below:")
-    await thread.send("👍 | 👎")
+    await interaction.followup.send("Suggestion posted.", ephemeral=True)
 
-    await interaction.followup.send(
-        "Suggestion submitted successfully.",
-        ephemeral=True
-    )
-
-
-# ======================== /suggestapprove ========================
 
 @bot.tree.command(name="suggestapprove", description="Approve a suggestion")
 async def suggestapprove(interaction: discord.Interaction):
 
-    if not is_suggestion_staff(interaction.user):
-        return await interaction.response.send_message(
-            "You do not have permission.",
-            ephemeral=True
-        )
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
 
-    if not isinstance(interaction.channel, discord.Thread):
-        return await interaction.response.send_message(
-            "Use this command inside a suggestion thread.",
-            ephemeral=True
-        )
+    embed = interaction.channel.last_message.embeds[0]
+    embed.color = discord.Color.green()
+    embed.set_field_at(0, name="Status", value="<@&1475602324230770901>", inline=False)
 
-    await interaction.channel.send(f"<@&{APPROVED_ROLE}>")
-    await interaction.channel.edit(locked=True, archived=True)
+    await interaction.channel.send("<@&1475602324230770901>")
+    await interaction.channel.last_message.edit(embed=embed)
 
-    await interaction.response.send_message(
-        "Suggestion approved and locked.",
-        ephemeral=True
-    )
+    await interaction.response.send_message("Suggestion approved.", ephemeral=True)
 
-
-# ======================== /suggestpending ========================
-
-@bot.tree.command(name="suggestpending", description="Mark a suggestion as pending")
-async def suggestpending(interaction: discord.Interaction):
-
-    if not is_suggestion_staff(interaction.user):
-        return await interaction.response.send_message(
-            "You do not have permission.",
-            ephemeral=True
-        )
-
-    if not isinstance(interaction.channel, discord.Thread):
-        return await interaction.response.send_message(
-            "Use this command inside a suggestion thread.",
-            ephemeral=True
-        )
-
-    await interaction.channel.send(f"<@&{PENDING_ROLE}>")
-
-    await interaction.response.send_message(
-        "Suggestion marked as pending.",
-        ephemeral=True
-    )
-
-
-# ======================== /suggestdeny ========================
 
 @bot.tree.command(name="suggestdeny", description="Deny a suggestion")
 async def suggestdeny(interaction: discord.Interaction):
 
-    if not is_suggestion_staff(interaction.user):
-        return await interaction.response.send_message(
-            "You do not have permission.",
-            ephemeral=True
-        )
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
 
-    if not isinstance(interaction.channel, discord.Thread):
-        return await interaction.response.send_message(
-            "Use this command inside a suggestion thread.",
-            ephemeral=True
-        )
+    embed = interaction.channel.last_message.embeds[0]
+    embed.color = discord.Color.red()
+    embed.set_field_at(0, name="Status", value="<@&1475602332829089842>", inline=False)
 
-    await interaction.channel.send(f"<@&{DENIED_ROLE}>")
-    await interaction.channel.edit(locked=True, archived=True)
+    await interaction.channel.send("<@&1475602332829089842>")
+    await interaction.channel.last_message.edit(embed=embed)
 
-    await interaction.response.send_message(
-        "Suggestion denied and locked.",
-        ephemeral=True
-    )
+    await interaction.response.send_message("Suggestion denied.", ephemeral=True)
+
+
+@bot.tree.command(name="suggestpending", description="Mark suggestion as pending")
+async def suggestpending(interaction: discord.Interaction):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    embed = interaction.channel.last_message.embeds[0]
+    embed.color = discord.Color.orange()
+    embed.set_field_at(0, name="Status", value="<@&1475602330148802842>", inline=False)
+
+    await interaction.channel.send("<@&1475602330148802842>")
+    await interaction.channel.last_message.edit(embed=embed)
+
+    await interaction.response.send_message("Suggestion pending.", ephemeral=True)
+
+
 # ==========================================================
+# ========================== RUN BOT =======================
+# ==========================================================
+
 bot.run(TOKEN)
