@@ -2,7 +2,7 @@
 # AZDPS DISCORD BOT
 # Developer: Wrd.Jaxk
 # Version: 1.0
-# Lines: 1502
+# Lines: 1512
 # All Rights Reserved
 # ==========================================================
 import os
@@ -1431,16 +1431,11 @@ async def miranda(interaction: discord.Interaction):
 @bot.tree.command(name="timestamp", description="Generate a Discord timestamp")
 @app_commands.describe(
     date="Date (YYYY-MM-DD)",
-    time="Time (HH:MM)",
-    ampm="AM or PM",
+    time="Time (24h format HH:MM)",
     timezone="Your timezone",
     style="Optional timestamp style"
 )
 @app_commands.choices(
-    ampm=[
-        app_commands.Choice(name="AM", value="AM"),
-        app_commands.Choice(name="PM", value="PM")
-    ],
     timezone=[
         app_commands.Choice(name="Eastern Standard Time (EST)", value="US/Eastern"),
         app_commands.Choice(name="Central Standard Time (CST)", value="US/Central"),
@@ -1463,7 +1458,6 @@ async def timestamp(
     interaction: discord.Interaction,
     date: str,
     time: str,
-    ampm: app_commands.Choice[str],
     timezone: app_commands.Choice[str],
     style: app_commands.Choice[str] = None
 ):
@@ -1473,12 +1467,6 @@ async def timestamp(
 
     try:
         hour, minute = map(int, time.split(":"))
-
-        # convert 12hr → 24hr
-        if ampm.value == "PM" and hour != 12:
-            hour += 12
-        if ampm.value == "AM" and hour == 12:
-            hour = 0
 
         dt = datetime.strptime(date, "%Y-%m-%d")
         dt = dt.replace(hour=hour, minute=minute)
@@ -1513,7 +1501,7 @@ async def timestamp(
 
     except Exception:
         await interaction.response.send_message(
-            "Invalid format. Use YYYY-MM-DD for date and HH:MM for time.",
+            "Invalid format. Use YYYY-MM-DD for date and HH:MM (24h) for time.",
             ephemeral=True
         )
 
