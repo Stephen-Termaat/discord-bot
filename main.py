@@ -259,8 +259,18 @@ async def promotiondps(interaction: discord.Interaction,
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    # Automatically generate next case number
+    # ================= CASE GENERATION =================
     case_number = get_next_case()
+
+    # ================= SAVE TO DATABASE =================
+    save_case(
+        case_number=case_number,
+        case_type="Promotion",
+        member_id=member.id,
+        moderator_id=interaction.user.id,
+        reason=reason
+    )
+    # ====================================================
 
     embed = discord.Embed(
         title=f"AZDPS Promotion | Case #{case_number:04d}",
@@ -872,7 +882,61 @@ async def forceappealclose(interaction: discord.Interaction):
             "This command must be used inside an appeal thread.",
             ephemeral=True
         )
+# ==========================================================
+# ======================= CASE DATABASE ====================
+# ==========================================================
 
+CASE_DB_FILE = "cases.json"
+
+if os.path.exists(CASE_DB_FILE):
+    with open(CASE_DB_FILE, "r") as f:
+        case_database = json.load(f)
+else:
+    case_database = {}
+
+
+def save_case(case_number, case_type, member_id, moderator_id, reason):
+    case_database[str(case_number)] = {
+        "type": case_type,
+        "member": str(member_id),
+        "moderator": str(moderator_id),
+        "reason": reason,
+        "date": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    with open(CASE_DB_FILE, "w") as f:
+        json.dump(case_database, f, indent=4)
+        # ==========================================================
+# ========================== CASE LOOKUP ===================
+# ==========================================================
+
+@bot.tree.command(name="case", description="Lookup a case by number")
+@app_commands.describe(case_number="Case number (example: 23)")
+async def case_lookup(interaction: discord.Interaction, case_number: int):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    case_data = case_database.get(str(case_number))
+
+    if not case_data:
+        return await interaction.response.send_message("Case not found.", ephemeral=True)
+
+    member = interaction.guild.get_member(int(case_data["member"]))
+    moderator = interaction.guild.get_member(int(case_data["moderator"]))
+
+    embed = discord.Embed(
+        title=f"Case #{case_number:04d}",
+        color=discord.Color.blurple()
+    )
+
+    embed.add_field(name="Type", value=case_data["type"], inline=False)
+    embed.add_field(name="Member", value=member.mention if member else case_data["member"], inline=False)
+    embed.add_field(name="Moderator", value=moderator.mention if moderator else case_data["moderator"], inline=False)
+    embed.add_field(name="Reason", value=case_data["reason"], inline=False)
+    embed.add_field(name="Date", value=case_data["date"], inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 # ==========================================================
 # ========================== RUN BOT =======================
 # ==========================================================
