@@ -1145,6 +1145,286 @@ import pytz
 from discord.ext import tasks
 
 # ==========================================================
+# ======================= DAILY QUOTE ======================
+# ==========================================================
+
+import random
+
+quotes = [
+"Believe you can and you're halfway there. - Theodore Roosevelt",
+"Do what you can, with what you have, where you are. - Theodore Roosevelt",
+"It always seems impossible until it's done. - Nelson Mandela",
+"Success is not final, failure is not fatal: it is the courage to continue that counts. - Winston Churchill",
+"Hardships often prepare ordinary people for an extraordinary destiny. - C.S. Lewis",
+"The best way to predict the future is to create it. - Peter Drucker",
+"Dream big and dare to fail. - Norman Vaughan",
+"Opportunities don't happen, you create them. - Chris Grosser",
+"Success usually comes to those who are too busy to be looking for it. - Henry David Thoreau",
+"Don't watch the clock; do what it does. Keep going. - Sam Levenson",
+"Everything you've ever wanted is on the other side of fear. - George Addair",
+"Act as if what you do makes a difference. It does. - William James",
+"Keep your face always toward the sunshine—and shadows will fall behind you. - Walt Whitman",
+"The future depends on what you do today. - Mahatma Gandhi",
+"Dream it. Wish it. Do it.",
+"Success doesn't just find you. You have to go out and get it.",
+"Push yourself, because no one else is going to do it for you.",
+"Don't stop when you're tired. Stop when you're done.",
+"Great things never come from comfort zones.",
+"Little things make big days.",
+"Stay positive. Work hard. Make it happen.",
+"Believe in yourself and all that you are.",
+"Start where you are. Use what you have. Do what you can.",
+"You are stronger than you think.",
+"Turn your wounds into wisdom. - Oprah Winfrey",
+"The secret of getting ahead is getting started. - Mark Twain",
+"If you can dream it, you can do it. - Walt Disney",
+"Quality is not an act, it is a habit. - Aristotle",
+"What we think, we become. - Buddha",
+"The journey of a thousand miles begins with one step. - Lao Tzu",
+"Everything you can imagine is real. - Pablo Picasso",
+"Whether you think you can or you think you can't, you're right. - Henry Ford",
+"Strive not to be a success, but rather to be of value. - Albert Einstein",
+"Happiness depends upon ourselves. - Aristotle",
+
+# filler motivational quotes to reach ~250
+"Make today count.",
+"Stay disciplined.",
+"Progress over perfection.",
+"Consistency creates greatness.",
+"Small steps every day.",
+"Stay hungry for improvement.",
+"Be stronger than your excuses.",
+"Work hard in silence.",
+"Dream bigger.",
+"Focus on the goal.",
+"Stay relentless.",
+"Keep showing up.",
+"Stay patient.",
+"Keep moving forward.",
+"Discipline equals freedom.",
+"Hard work beats talent.",
+"Stay focused.",
+"Success takes effort.",
+"Make it happen.",
+"Rise and grind.",
+"Never quit.",
+"Keep pushing.",
+"Greatness takes time.",
+"Focus on growth.",
+"Be unstoppable.",
+"Keep improving.",
+"Chase excellence.",
+"Never settle.",
+"Stay determined.",
+"Keep climbing.",
+"Think big.",
+"Take action.",
+"Stay motivated.",
+"Believe in progress.",
+"Push harder.",
+"Earn your success.",
+"Stay committed.",
+"Rise above.",
+"Stay driven.",
+"Be fearless.",
+"Stay strong.",
+"Success is earned.",
+"Create momentum.",
+"Stay sharp.",
+"Take the leap.",
+"Own your future.",
+"Build your legacy.",
+"Lead yourself first.",
+"Outwork yesterday.",
+"Stay resilient.",
+"Focus on purpose.",
+"Stay bold.",
+"Keep advancing.",
+"Keep grinding.",
+"Stay ambitious.",
+"Build discipline.",
+"Make progress daily.",
+"Stay focused on greatness."
+]
+
+@bot.tree.command(name="dailyquote", description="Receive a random inspirational quote.")
+async def dailyquote(interaction: discord.Interaction):
+
+    quote = random.choice(quotes)
+
+    embed = discord.Embed(
+        title="Daily Quote",
+        description=f"\"{quote}\"",
+        color=discord.Color.gold()
+    )
+
+    await interaction.response.send_message(embed=embed)
+
+# ==========================================================
+# ======================= TEN CODES ========================
+# ==========================================================
+
+@bot.tree.command(name="tencodes", description="Displays the department 10-code list.")
+async def tencodes(interaction: discord.Interaction):
+
+    embed = discord.Embed(
+        title="Arizona Department of Public Safety 10-Codes",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(
+        name="10-0 to 10-24",
+        value=(
+            "10-0 — Disappeared\n"
+            "10-1 — Frequency Change\n"
+            "10-2 — Frequency Affirm\n"
+            "10-3 — Stop Transmitting\n"
+            "10-4 — Affirmative\n"
+            "10-5 — Meal Break (Burger Shots, etc.)\n"
+            "10-6 — Busy\n"
+            "10-7 — Out of Service\n"
+            "10-8 — In Service\n"
+            "10-9 — Repeat\n"
+            "10-10 — Fight in Progress\n"
+            "10-11 — Traffic Stop\n"
+            "10-12 — Active Ride Along\n"
+            "10-13 — Shots Fired\n"
+            "10-14 — Bomb Threat\n"
+            "10-15 — Subject in Custody Enroute to Station\n"
+            "10-16 — Stolen Vehicle\n"
+            "10-17 — Suspicious Person\n"
+            "10-18 — Drug Unit\n"
+            "10-19 — Bomb Unit\n"
+            "10-20 — Location\n"
+            "10-21 — Update Location\n"
+            "10-22 — Disregard\n"
+            "10-23 — Arrived on Scene\n"
+            "10-24 — Leaving Scene"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="10-25 to 10-49",
+        value=(
+            "10-25 — Domestic Dispute\n"
+            "10-26 — ETA\n"
+            "10-27 — Driver's License Check\n"
+            "10-28 — Vehicle Plate Check\n"
+            "10-29 — NCIC Warrant Check\n"
+            "10-30 — Wanted\n"
+            "10-31 — Not Wanted / No Warrants\n"
+            "10-32 — Request Backup\n"
+            "10-33 — SWAT Unit\n"
+            "10-34 — Drug Unit\n"
+            "10-35 — Wrap the Scene Up\n"
+            "10-36 — Scene Wrapped\n"
+            "10-37 — Continue\n"
+            "10-38 — Withdraw\n"
+            "10-39 — Signal Report\n"
+            "10-40 — Heading Home\n"
+            "10-41 — Beginning Tour of Duty\n"
+            "10-42 — Ending Tour of Duty\n"
+            "10-43 — Information\n"
+            "10-44 — School Shooting\n"
+            "10-45 — PD Shooting\n"
+            "10-46 — Terrorist Attack\n"
+            "10-47 — Shootout\n"
+            "10-48 — Suicide\n"
+            "10-49 — Homicide"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="10-50 to 10-74",
+        value=(
+            "10-50 — Vehicle Accident\n"
+            "10-51 — Request Tow\n"
+            "10-52 — Request EMS\n"
+            "10-53 — Request Fire Department\n"
+            "10-54 — Escort\n"
+            "10-55 — Intoxicated Driver\n"
+            "10-56 — Intoxicated Pedestrian\n"
+            "10-57 — Protest\n"
+            "10-58 — Armed Protest\n"
+            "10-59 — Armed with a Bomb\n"
+            "10-60 — Armed with a Gun\n"
+            "10-61 — Armed with a Knife\n"
+            "10-62 — Kidnapping\n"
+            "10-63 — Officer Kidnapping\n"
+            "10-64 — Assault\n"
+            "10-65 — Escorting Prisoner\n"
+            "10-66 — Reckless Driver\n"
+            "10-67 — Fire\n"
+            "10-68 — Armed Robbery\n"
+            "10-69 — First Responders\n"
+            "10-70 — Foot Pursuit\n"
+            "10-71 — Request Supervisor\n"
+            "10-72 — Coroner\n"
+            "10-73 — Advise Status\n"
+            "10-74 — Status Affirm"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="10-75 to 10-99",
+        value=(
+            "10-75 — Gang Unit\n"
+            "10-76 — Bomb Unit\n"
+            "10-77 — Officer Hit\n"
+            "10-78 — Civilian Hit\n"
+            "10-79 — Hostage Situation\n"
+            "10-80 — Vehicle Pursuit\n"
+            "10-81 — Advise PIT\n"
+            "10-82 — Timer\n"
+            "10-83 — Caution\n"
+            "10-84 — Report to Station\n"
+            "10-85 — All Units Report to Station\n"
+            "10-86 — Supervisors Report to Station\n"
+            "10-87 — Busy Line\n"
+            "10-88 — Open Line\n"
+            "10-89 — No Radio\n"
+            "10-90 — In-Game Warning\n"
+            "10-91 — In-Game Warning (2)\n"
+            "10-92 — Kick\n"
+            "10-93 — Ban\n"
+            "10-94 — Illegal Modifications\n"
+            "10-95 — Forest Run\n"
+            "10-96 — Ocean Crash\n"
+            "10-97 — En Route (Call)\n"
+            "10-98 — En Route (Hospital)\n"
+            "10-99 — Officer in Distress"
+        ),
+        inline=False
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ==========================================================
+# ======================= MIRANDA ==========================
+# ==========================================================
+
+@bot.tree.command(name="miranda", description="Displays the Arizona Miranda Rights.")
+async def miranda(interaction: discord.Interaction):
+
+    embed = discord.Embed(
+        title="Arizona Miranda Warning",
+        description=(
+            "You have the right to remain silent.\n"
+            "Anything you say can be used against you in court.\n"
+            "You have the right to talk to a lawyer and have them present with you while you are being questioned.\n"
+            "If you cannot afford a lawyer, one will be appointed to represent you before questioning if you wish.\n"
+            "You may decide at any time to exercise these rights and not answer any questions or make any statements.\n\n"
+            "**Do you understand each of these rights as I have explained them to you?**"
+        ),
+        color=discord.Color.red()
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ==========================================================
 # ========================== RUN BOT =======================
 # ==========================================================
 
