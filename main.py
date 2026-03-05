@@ -1,10 +1,10 @@
 # ==========================================================
-# AZDPS BOT v1.0.0
-# Proprietary System
-# Developed by Wrd.Jaxk
-# All Rights Reserved
+# AZDPS DISCORD BOT
+# Developer: Wrd.Jaxk
+# Version: 1.0
+# Lines: 1502
+All Rights Reserved
 # ==========================================================
-
 import os
 import discord
 from discord.ext import commands, tasks
