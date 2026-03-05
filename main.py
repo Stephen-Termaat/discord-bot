@@ -261,8 +261,11 @@ async def promotiondps(interaction: discord.Interaction,
 
     await interaction.followup.send("Promotion logged.", ephemeral=True)
 
+# ==========================================================
+# ======================== BLACKLIST =======================
+# ==========================================================
 
-# @bot.tree.command(name="blacklist", description="Blacklist a user or server")
+@bot.tree.command(name="blacklist", description="Blacklist a user or server")
 async def blacklist(interaction: discord.Interaction, target_id: str, reason: str):
 
     await interaction.response.defer(ephemeral=True)
@@ -272,7 +275,6 @@ async def blacklist(interaction: discord.Interaction, target_id: str, reason: st
 
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Detect if user exists
     user = bot.get_user(int(target_id))
     guild = bot.get_guild(int(target_id))
 
@@ -311,6 +313,67 @@ async def blacklist(interaction: discord.Interaction, target_id: str, reason: st
         }, f, indent=4)
 
     await interaction.followup.send("Blacklisted successfully.", ephemeral=True)
+
+
+# ==========================================================
+# ===================== BLACKLIST REMOVE ===================
+# ==========================================================
+
+@bot.tree.command(name="blacklistremove", description="Remove from blacklist")
+async def blacklistremove(interaction: discord.Interaction, target_id: str):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    removed_data = None
+
+    if target_id in blacklisted_users:
+        removed_data = blacklisted_users.pop(target_id)
+
+    elif target_id in blacklisted_servers:
+        removed_data = blacklisted_servers.pop(target_id)
+
+    if removed_data:
+        with open("blacklist.json", "w") as f:
+            json.dump({
+                "users": blacklisted_users,
+                "servers": blacklisted_servers
+            }, f, indent=4)
+
+        await interaction.response.send_message(
+            f"Removed from blacklist.\nOriginally added: {removed_data['date']}\nReason: {removed_data['reason']}",
+            ephemeral=True
+        )
+    else:
+        await interaction.response.send_message("ID not found.", ephemeral=True)
+
+
+# ==========================================================
+# ====================== BLACKLIST INFO ====================
+# ==========================================================
+
+@bot.tree.command(name="blacklistinfo", description="View blacklist details")
+async def blacklistinfo(interaction: discord.Interaction, target_id: str):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    data = blacklisted_users.get(target_id) or blacklisted_servers.get(target_id)
+
+    if not data:
+        return await interaction.response.send_message("Not blacklisted.", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Blacklist Info",
+        color=discord.Color.red()
+    )
+
+    embed.add_field(name="ID", value=target_id, inline=False)
+    embed.add_field(name="Date Added", value=data["date"], inline=False)
+    embed.add_field(name="Moderator ID", value=data["moderator"], inline=False)
+    embed.add_field(name="Reason", value=data["reason"], inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ==========================================================
 # ======================== BAN / UNBAN =====================
