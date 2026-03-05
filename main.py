@@ -14,15 +14,7 @@ import asyncio
 import json
 import re
 import random
-from datetime import time
-import pytz
-import json
 
-try:
-    with open("quotes.json", "r", encoding="utf-8") as f:
-        quotes = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    quotes = ["Stay positive and keep moving forward. - Unknown"]
 # ==========================================================
 # ========================== TOKEN ==========================
 # ==========================================================
@@ -1152,57 +1144,6 @@ from datetime import time
 import pytz
 from discord.ext import tasks
 
-QUOTE_CHANNEL_ID = 1478137798065258496
-
-
-# ================= LOAD QUOTES =================
-def load_quotes():
-    try:
-        with open("quotes.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
-
-
-# ================= DAILY QUOTE TASK =================
-@tasks.loop(time=time(hour=5, minute=0, tzinfo=pytz.timezone("US/Eastern")))
-async def daily_quote():
-
-    quotes = load_quotes()
-    if not quotes:
-        return
-
-    quote = random.choice(quotes)
-
-    channel = bot.get_channel(QUOTE_CHANNEL_ID)
-    if channel:
-        await channel.send(quote)
-
-
-@daily_quote.before_loop
-async def before_daily_quote():
-    await bot.wait_until_ready()
-
-
-# ================= MANUAL QUOTE COMMAND =================
-@bot.tree.command(name="quote", description="Send a random inspirational quote")
-async def quote(interaction: discord.Interaction):
-
-    quotes = load_quotes()
-    if not quotes:
-        await interaction.response.send_message(
-            "No quotes found in quotes.json",
-            ephemeral=True
-        )
-        return
-
-    quote = random.choice(quotes)
-
-    await interaction.response.send_message(quote)
-
-
-# ================= START TASK =================
-daily_quote.start()
 # ==========================================================
 # ========================== RUN BOT =======================
 # ==========================================================
