@@ -217,7 +217,28 @@ async def infractiondps(interaction: discord.Interaction,
 
     await interaction.followup.send("Infraction issued.", ephemeral=True)
 
+# ==========================================================
+# ======================= CASE SYSTEM ======================
+# ==========================================================
 
+CASE_FILE = "case_counter.json"
+
+if os.path.exists(CASE_FILE):
+    with open(CASE_FILE, "r") as f:
+        case_data = json.load(f)
+        case_counter = case_data.get("last_case", 0)
+else:
+    case_counter = 0
+
+
+def get_next_case():
+    global case_counter
+    case_counter += 1
+
+    with open(CASE_FILE, "w") as f:
+        json.dump({"last_case": case_counter}, f, indent=4)
+
+    return case_counter
 # ==========================================================
 # ===================== PROMOTION SYSTEM ===================
 # ==========================================================
@@ -238,8 +259,11 @@ async def promotiondps(interaction: discord.Interaction,
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
+    # Automatically generate next case number
+    case_number = get_next_case()
+
     embed = discord.Embed(
-        title="AZDPS Promotion",
+        title=f"AZDPS Promotion | Case #{case_number:04d}",
         color=discord.Color.green(),
         timestamp=datetime.utcnow()
     )
@@ -253,14 +277,20 @@ async def promotiondps(interaction: discord.Interaction,
     await promo_channel.send(content=member.mention, embed=embed)
 
     try:
-        await member.send(f"You have been promoted to {new_rank}.\nReason: {reason}")
+        await member.send(
+            f"You have been promoted to {new_rank}.\n"
+            f"Reason: {reason}\n"
+            f"Case #{case_number:04d}"
+        )
     except:
         pass
 
     await send_staff_log(embed)
 
-    await interaction.followup.send("Promotion logged.", ephemeral=True)
-
+    await interaction.followup.send(
+        f"Promotion logged under Case #{case_number:04d}.",
+        ephemeral=True
+    )
 # ==========================================================
 # ======================== BLACKLIST =======================
 # ==========================================================
@@ -670,7 +700,178 @@ async def suggestpending(interaction: discord.Interaction):
     await interaction.channel.last_message.edit(embed=embed)
 
     await interaction.response.send_message("Suggestion pending.", ephemeral=True)
+# ==========================================================
+# =========================== LOCK =========================
+# ==========================================================
 
+@bot.tree.command(name="lock", description="Lock a channel")
+async def lock(interaction: discord.Interaction, channel: discord.TextChannel = None):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    channel = channel or interaction.channel
+
+    await channel.set_permissions(interaction.guild.default_role, send_messages=False)
+
+    await interaction.response.send_message(f"{channel.mention} has been locked.")
+
+
+# ==========================================================
+# ========================== UNLOCK ========================
+# ==========================================================
+
+@bot.tree.command(name="unlock", description="Unlock a channel")
+async def unlock(interaction: discord.Interaction, channel: discord.TextChannel = None):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    channel = channel or interaction.channel
+
+    await channel.set_permissions(interaction.guild.default_role, send_messages=True)
+
+    await interaction.response.send_message(f"{channel.mention} has been unlocked.")
+
+
+# ==========================================================
+# ========================= SLOWMODE =======================
+# ==========================================================
+
+@bot.tree.command(name="slowmode", description="Set slowmode in a channel")
+async def slowmode(interaction: discord.Interaction, seconds: int, channel: discord.TextChannel = None):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    channel = channel or interaction.channel
+
+    await channel.edit(slowmode_delay=seconds)
+
+    await interaction.response.send_message(
+        f"Slowmode set to {seconds} seconds in {channel.mention}."
+    )
+
+
+# ==========================================================
+# ============================ WARN ========================
+# ==========================================================
+
+warnings = {}
+
+@bot.tree.command(name="warn", description="Warn a user")
+async def warn(interaction: discord.Interaction, member: discord.Member, reason: str):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    if member.id not in warnings:
+        warnings[member.id] = []
+
+    warnings[member.id].append({
+        "moderator": interaction.user.id,
+        "reason": reason
+    })
+
+    try:
+        await member.send(f"You were warned.\nReason: {reason}")
+    except:
+        pass
+
+    await interaction.response.send_message(
+        f"{member.mention} has been warned."
+    )
+
+
+# ==========================================================
+# ========================== STRIKES =======================
+# ==========================================================
+
+@bot.tree.command(name="strikes", description="View a user's warnings")
+async def strikes(interaction: discord.Interaction, member: discord.Member):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    user_warnings = warnings.get(member.id)
+
+    if not user_warnings:
+        return await interaction.response.send_message(
+            "No strikes found.", ephemeral=True
+        )
+
+    description = ""
+    for i, warn_data in enumerate(user_warnings, start=1):
+        description += f"Strike {i}: {warn_data['reason']}\n"
+
+    embed = discord.Embed(
+        title=f"{member.name}'s Strikes",
+        description=description,
+        color=discord.Color.orange()
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# ==========================================================
+# ======================== STRIKE RESET ====================
+# ==========================================================
+
+@bot.tree.command(name="strikereset", description="Reset a user's strikes")
+async def strikereset(interaction: discord.Interaction, member: discord.Member):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    if member.id in warnings:
+        warnings.pop(member.id)
+
+    await interaction.response.send_message(
+        f"{member.mention}'s strikes have been reset."
+    )
+
+
+# ==========================================================
+# ============================ AUDIT =======================
+# ==========================================================
+
+@bot.tree.command(name="audit", description="View recent audit logs")
+async def audit(interaction: discord.Interaction):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    logs = []
+    async for entry in interaction.guild.audit_logs(limit=5):
+        logs.append(f"{entry.user} did {entry.action}")
+
+    embed = discord.Embed(
+        title="Recent Audit Logs",
+        description="\n".join(logs) if logs else "No logs found.",
+        color=discord.Color.blurple()
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# ==========================================================
+# ===================== FORCE APPEAL CLOSE =================
+# ==========================================================
+
+@bot.tree.command(name="forceappealclose", description="Force close an appeal thread")
+async def forceappealclose(interaction: discord.Interaction):
+
+    if not has_permission(interaction.user):
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    if isinstance(interaction.channel, discord.Thread):
+        await interaction.channel.edit(archived=True, locked=True)
+        await interaction.response.send_message("Appeal thread closed.")
+    else:
+        await interaction.response.send_message(
+            "This command must be used inside an appeal thread.",
+            ephemeral=True
+        )
 
 # ==========================================================
 # ========================== RUN BOT =======================
