@@ -2,7 +2,7 @@
 # AZDPS DISCORD BOT
 # Developer: Wrd.Jaxk
 # Version: 1.0
-# Lines: 1512
+# Lines: 1484
 # All Rights Reserved
 # ==========================================================
 import os
@@ -1425,25 +1425,18 @@ async def miranda(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ==========================================================
-# ===================== TIMESTAMP GENERATOR =================
+# ===================== SMART TIMESTAMP ====================
 # ==========================================================
 
-@bot.tree.command(name="timestamp", description="Generate a Discord timestamp")
+import time
+import dateparser
+
+@bot.tree.command(name="timestamp", description="Generate a Discord timestamp from natural language")
 @app_commands.describe(
-    date="Date (YYYY-MM-DD)",
-    time="Time (24h format HH:MM)",
-    timezone="Your timezone",
+    input="Example: '2h', 'tomorrow 5pm', 'in 30 minutes', 'next monday 14:00'",
     style="Optional timestamp style"
 )
 @app_commands.choices(
-    timezone=[
-        app_commands.Choice(name="Eastern Standard Time (EST)", value="US/Eastern"),
-        app_commands.Choice(name="Central Standard Time (CST)", value="US/Central"),
-        app_commands.Choice(name="Mountain Standard Time (MST)", value="US/Mountain"),
-        app_commands.Choice(name="Pacific Standard Time (PST)", value="US/Pacific"),
-        app_commands.Choice(name="Greenwich Mean Time (GMT)", value="GMT"),
-        app_commands.Choice(name="Coordinated Universal Time (UTC)", value="UTC")
-    ],
     style=[
         app_commands.Choice(name="Short Time", value="t"),
         app_commands.Choice(name="Long Time", value="T"),
@@ -1456,54 +1449,33 @@ async def miranda(interaction: discord.Interaction):
 )
 async def timestamp(
     interaction: discord.Interaction,
-    date: str,
-    time: str,
-    timezone: app_commands.Choice[str],
+    input: str,
     style: app_commands.Choice[str] = None
 ):
 
-    import pytz
-    from datetime import datetime
+    parsed = dateparser.parse(input)
 
-    try:
-        hour, minute = map(int, time.split(":"))
-
-        dt = datetime.strptime(date, "%Y-%m-%d")
-        dt = dt.replace(hour=hour, minute=minute)
-
-        tz = pytz.timezone(timezone.value)
-        dt = tz.localize(dt)
-
-        unix = int(dt.timestamp())
-
-        timestamp_type = style.value if style else "f"
-
-        formatted = f"<t:{unix}:{timestamp_type}>"
-
-        embed = discord.Embed(
-            title="Timestamp Generated",
-            color=discord.Color.blue()
-        )
-
-        embed.add_field(
-            name="Copy Timestamp",
-            value=f"```{formatted}```",
-            inline=False
-        )
-
-        embed.add_field(
-            name="Preview",
-            value=formatted,
-            inline=False
-        )
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    except Exception:
+    if not parsed:
         await interaction.response.send_message(
-            "Invalid format. Use YYYY-MM-DD for date and HH:MM (24h) for time.",
+            "❌ Could not understand that time.\nExample inputs:\n`2h`, `tomorrow 5pm`, `in 30 minutes`",
             ephemeral=True
         )
+        return
+
+    unix = int(parsed.timestamp())
+
+    timestamp_type = style.value if style else "f"
+
+    formatted = f"<t:{unix}:{timestamp_type}>"
+
+    message = (
+        "**Timestamp Generated**\n\n"
+        "Copy the code below:\n"
+        f"```\n{formatted}\n```\n\n"
+        f"Preview: {formatted}"
+    )
+
+    await interaction.response.send_message(message, ephemeral=True)
 
 # ==========================================================
 # ========================== RUN BOT =======================
