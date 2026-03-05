@@ -148,7 +148,6 @@ def extract_invite_code(invite: str):
     action="Infraction type",
     appealable="Appealable?",
     reason="Reason",
-    duration="Duration (7d / 12h)"
 )
 @app_commands.choices(
     action=[
@@ -568,22 +567,28 @@ async def fetchuser(interaction: discord.Interaction, member: discord.Member):
 # ========================= UPDATE =========================
 # ==========================================================
 
-@bot.tree.command(name="update", description="Post an update")
-async def update(interaction: discord.Interaction, message: str):
+@bot.tree.command(name="update", description="Send a department update")
+@app_commands.describe(
+    number="Update number (example: 010)",
+    update="The update message"
+)
+async def update(interaction: discord.Interaction, number: str, update: str):
 
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
 
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    channel = bot.get_channel(UPDATE_CHANNEL_ID)
+    formatted_message = (
+        f"<:AZDPS:1312784566725120030> "
+        f"Department Update #{number} "
+        f"<:AZDPS:1312784566725120030>\n\n"
+        f"> {update}"
+    )
 
-    await channel.send("----------------------------------------")
-    await channel.send(message)
-    await channel.send("----------------------------------------")
+    await interaction.channel.send(formatted_message)
 
-    await interaction.followup.send("Update posted.", ephemeral=True)
-
+    await interaction.followup.send("Department update sent.", ephemeral=True)
 
 # ==========================================================
 # =========================== SAY ==========================
