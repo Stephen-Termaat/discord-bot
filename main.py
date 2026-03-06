@@ -1525,7 +1525,42 @@ async def on_guild_join(guild):
                 )
             except:
                 pass
+# ==========================================================
+# ======================= AUTO SYNC ========================
+# ==========================================================
 
+@bot.event
+async def on_ready():
+    try:
+        guild = discord.Object(id=1296582770679877662)  # Approved server
+
+        synced = await bot.tree.sync(guild=guild)
+        print(f"Synced {len(synced)} commands to approved guild.")
+
+    except Exception as e:
+        print(f"Command sync failed: {e}")
+
+    print(f"Logged in as {bot.user}")
+    
+    # ==========================================================
+# ======================= SYNC COMMAND =====================
+# ==========================================================
+
+@bot.tree.command(name="sync", description="Sync bot commands")
+async def sync(interaction: discord.Interaction):
+
+    if interaction.user.id != 1085998179318771805:
+        return await interaction.response.send_message("No permission.", ephemeral=True)
+
+    await interaction.response.defer(ephemeral=True)
+
+    guild = discord.Object(id=1296582770679877662)
+
+    try:
+        synced = await bot.tree.sync(guild=guild)
+        await interaction.followup.send(f"Synced {len(synced)} commands to approved server.", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"Sync failed: {e}", ephemeral=True)
 # ==========================================================
 # ========================== RUN BOT =======================
 # ==========================================================
