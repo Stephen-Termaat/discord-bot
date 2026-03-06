@@ -112,8 +112,15 @@ async def change_status():
 
 @bot.event
 async def on_ready():
-
     print(f"Logged in as {bot.user}")
+
+    guild = discord.Object(id=APPROVED_GUILD_ID)
+
+    try:
+        await bot.tree.sync(guild=guild)
+        print("Commands synced.")
+    except Exception as e:
+        print(e)
 
 # ==========================================================
 # ====================== HELPER METHODS ====================
