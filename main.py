@@ -328,25 +328,45 @@ async def blacklist(interaction: discord.Interaction, target_id: str, reason: st
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
+    try:
+        target_id = int(target_id)
+    except ValueError:
+        return await interaction.followup.send("Invalid ID.", ephemeral=True)
+
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    user = bot.get_user(int(target_id))
-    guild = bot.get_guild(int(target_id))
+    user = bot.get_user(target_id)
+    guild = bot.get_guild(target_id)
 
-    if user:
-        blacklisted_users[target_id] = {
+    # ================= USER BLACKLIST =================
+    if user or not guild:
+
+        blacklisted_users[str(target_id)] = {
             "date": now,
             "moderator": str(interaction.user.id),
             "reason": reason
         }
 
-        try:
-            await user.send(f"You have been blacklisted.\nReason: {reason}")
-        except:
-            pass
+        if user:
+            try:
+                await user.send(f"You have been blacklisted.\nReason: {reason}")
+            except:
+                pass
 
-    elif guild:
-        blacklisted_servers[target_id] = {
+        # Ban user from current server if present
+        if interaction.guild:
+            member = interaction.guild.get_member(target_id)
+            if member:
+                try:
+                    await interaction.guild.ban(member, reason="Blacklisted user")
+                except:
+                    pass
+
+
+    # ================= SERVER BLACKLIST =================
+    if guild:
+
+        blacklisted_servers[str(target_id)] = {
             "date": now,
             "moderator": str(interaction.user.id),
             "reason": reason
@@ -354,13 +374,18 @@ async def blacklist(interaction: discord.Interaction, target_id: str, reason: st
 
         try:
             owner = guild.owner
-            await owner.send(f"Your server has been blacklisted.\nReason: {reason}")
+            if owner:
+                await owner.send(f"Your server has been blacklisted.\nReason: {reason}")
         except:
             pass
 
-    else:
-        return await interaction.followup.send("Invalid ID.", ephemeral=True)
+        try:
+            await guild.leave()
+        except:
+            pass
 
+
+    # ================= SAVE FILE =================
     with open("blacklist.json", "w") as f:
         json.dump({
             "users": blacklisted_users,
@@ -368,7 +393,6 @@ async def blacklist(interaction: discord.Interaction, target_id: str, reason: st
         }, f, indent=4)
 
     await interaction.followup.send("Blacklisted successfully.", ephemeral=True)
-
 
 # ==========================================================
 # ===================== BLACKLIST REMOVE ===================
