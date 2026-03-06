@@ -35,7 +35,7 @@ STAFF_LOG_CHANNEL_ID = 1478873218688487485
 UPDATE_CHANNEL_ID = 1474211686947885187
 SUGGESTION_FORUM_ID = 1475601720242475124
 QUOTE_CHANNEL_ID = 1478137798065258496
-
+APPROVED_GUILD_ID = 1296582770679877662
 # ==========================================================
 # ======================== ROLE IDS ========================
 # ==========================================================
@@ -112,9 +112,19 @@ async def change_status():
 
 @bot.event
 async def on_ready():
-    change_status.start()
-    await bot.tree.sync()
+
     print(f"Logged in as {bot.user}")
+
+    try:
+        guild = discord.Object(id=APPROVED_GUILD_ID)
+
+        bot.tree.clear_commands(guild=None)
+        await bot.tree.sync(guild=guild)
+
+        print("Commands synced to approved guild only.")
+
+    except Exception as e:
+        print(f"Sync failed: {e}")
 
 # ==========================================================
 # ====================== HELPER METHODS ====================
@@ -1476,6 +1486,49 @@ async def timestamp(
     )
 
     await interaction.response.send_message(message, ephemeral=True)
+
+# ==========================================================
+# ====================== GUILD SECURITY ====================
+# ==========================================================
+
+APPROVED_GUILD_ID = 1296582770679877662
+OWNER_ID = 1085998179318771805
+
+
+@bot.event
+async def on_guild_join(guild):
+
+    owner = bot.get_user(OWNER_ID)
+
+    if guild.id != APPROVED_GUILD_ID:
+
+        if owner:
+            try:
+                await owner.send(
+                    f"⚠️ Bot was added to an unauthorized server.\n\n"
+                    f"Server Name: {guild.name}\n"
+                    f"Server ID: {guild.id}\n"
+                    f"Owner: {guild.owner}\n"
+                    f"Members: {guild.member_count}\n\n"
+                    f"Leaving server..."
+                )
+            except:
+                pass
+
+        await guild.leave()
+
+    else:
+
+        if owner:
+            try:
+                await owner.send(
+                    f"✅ Bot joined approved server.\n\n"
+                    f"Server Name: {guild.name}\n"
+                    f"Server ID: {guild.id}\n"
+                    f"Members: {guild.member_count}"
+                )
+            except:
+                pass
 
 # ==========================================================
 # ========================== RUN BOT =======================
