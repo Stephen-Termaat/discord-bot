@@ -115,17 +115,6 @@ async def on_ready():
 
     print(f"Logged in as {bot.user}")
 
-    try:
-        guild = discord.Object(id=APPROVED_GUILD_ID)
-
-        bot.tree.clear_commands(guild=None)
-        await bot.tree.sync(guild=guild)
-
-        print("Commands synced to approved guild only.")
-
-    except Exception as e:
-        print(f"Sync failed: {e}")
-
 # ==========================================================
 # ====================== HELPER METHODS ====================
 # ==========================================================
