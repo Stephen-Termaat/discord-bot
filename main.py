@@ -453,7 +453,31 @@ async def blacklistinfo(interaction: discord.Interaction, target_id: str):
     embed.add_field(name="Reason", value=data["reason"], inline=False)
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+# ==========================================================
+# ====================== MEMBER JOIN =======================
+# ==========================================================
 
+@bot.event
+async def on_member_join(member):
+
+    if str(member.id) in blacklisted_users:
+        try:
+            await member.guild.ban(member, reason="Blacklisted user")
+        except:
+            pass
+            
+            # ==========================================================
+# ====================== GUILD JOIN ========================
+# ==========================================================
+
+@bot.event
+async def on_guild_join(guild):
+
+    if str(guild.id) in blacklisted_servers:
+        try:
+            await guild.leave()
+        except:
+            pass
 # ==========================================================
 # ======================== BAN / UNBAN =====================
 # ==========================================================
