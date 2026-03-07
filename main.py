@@ -146,7 +146,7 @@ def is_user_id(value: str):
 def extract_invite_code(invite: str):
     match = re.search(r"(?:discord\.gg/|discord\.com/invite/)(\w+)", invite)
     return match.group(1) if match else None
-    # ==========================================================
+# ==========================================================
 # ===================== INFRACTION SYSTEM ==================
 # ==========================================================
 
@@ -182,10 +182,6 @@ async def infractiondps(
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    delta = parse_duration(duration)
-    if not delta:
-        return await interaction.followup.send("Duration must end in d or h.", ephemeral=True)
-
     user_id = str(member.id)
     strike_counts[user_id] = strike_counts.get(user_id, 0)
 
@@ -207,7 +203,6 @@ async def infractiondps(
     embed.add_field(name="User", value=member.mention, inline=False)
     embed.add_field(name="Action", value=action.value, inline=False)
     embed.add_field(name="Reason", value=reason, inline=False)
-    embed.add_field(name="Duration", value=duration, inline=False)
     embed.add_field(name="Current Strikes", value=str(strike_counts[user_id]), inline=False)
     embed.add_field(name="Appealable", value=appealable.value, inline=False)
     embed.add_field(name="Moderator", value=interaction.user.mention, inline=False)
@@ -231,29 +226,6 @@ async def infractiondps(
     await send_staff_log(embed)
 
     await interaction.followup.send("Infraction issued.", ephemeral=True)
-
-# ==========================================================
-# ======================= CASE SYSTEM ======================
-# ==========================================================
-
-CASE_FILE = "case_counter.json"
-
-if os.path.exists(CASE_FILE):
-    with open(CASE_FILE, "r") as f:
-        case_data = json.load(f)
-        case_counter = case_data.get("last_case", 0)
-else:
-    case_counter = 0
-
-
-def get_next_case():
-    global case_counter
-    case_counter += 1
-
-    with open(CASE_FILE, "w") as f:
-        json.dump({"last_case": case_counter}, f, indent=4)
-
-    return case_counter
 # ==========================================================
 # ===================== PROMOTION SYSTEM ===================
 # ==========================================================
