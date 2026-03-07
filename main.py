@@ -246,21 +246,8 @@ async def promotiondps(interaction: discord.Interaction,
     if not has_permission(interaction.user):
         return await interaction.followup.send("No permission.", ephemeral=True)
 
-    # ================= CASE GENERATION =================
-    case_number = get_next_case()
-
-    # ================= SAVE TO DATABASE =================
-    save_case(
-        case_number=case_number,
-        case_type="Promotion",
-        member_id=member.id,
-        moderator_id=interaction.user.id,
-        reason=reason
-    )
-    # ====================================================
-
     embed = discord.Embed(
-        title=f"AZDPS Promotion | Case #{case_number:04d}",
+        title="AZDPS Promotion",
         color=discord.Color.green(),
         timestamp=datetime.utcnow()
     )
@@ -270,14 +257,22 @@ async def promotiondps(interaction: discord.Interaction,
     embed.add_field(name="Reason", value=reason, inline=False)
     embed.add_field(name="Approved By", value=interaction.user.mention, inline=False)
 
-    promo_channel = bot.get_channel(PROMOTION_CHANNEL_ID)
+    # Get promotion channel
+    promo_channel = interaction.guild.get_channel(PROMOTION_CHANNEL_ID)
+
+    if promo_channel is None:
+        return await interaction.followup.send(
+            "Promotion channel not found. Check PROMOTION_CHANNEL_ID.",
+            ephemeral=True
+        )
+
     await promo_channel.send(content=member.mention, embed=embed)
 
+    # DM promoted user
     try:
         await member.send(
-            f"You have been promoted to {new_rank}.\n"
-            f"Reason: {reason}\n"
-            f"Case #{case_number:04d}"
+            f"You have been promoted to **{new_rank}**.\n"
+            f"Reason: {reason}"
         )
     except:
         pass
@@ -285,7 +280,7 @@ async def promotiondps(interaction: discord.Interaction,
     await send_staff_log(embed)
 
     await interaction.followup.send(
-        f"Promotion logged under Case #{case_number:04d}.",
+        "Promotion logged successfully.",
         ephemeral=True
     )
 # ==========================================================
